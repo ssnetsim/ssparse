@@ -44,6 +44,8 @@
 #include <iostream>
 #include <locale>
 #include <string>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 bool toU64(const std::string _str, u64* _value) {
@@ -115,6 +117,7 @@ Stats meanStddev(const std::vector<u64>& _vec) {
 }
 
 void extractLatency(const char* _inputFile,
+                    const char* _transactionFile,
                     const char* _messageFile,
                     const char* _packetFile,
                     const char* _aggregateFile) {
@@ -125,6 +128,12 @@ void extractLatency(const char* _inputFile,
     fileInputStream.open(_inputFile);
   }
   std::istream& inputStream = useCin ? std::cin : fileInputStream;
+
+  bool transactionOut = _transactionFile != NULL;
+  std::ofstream _transactionStream;
+  if (transactionOut) {
+    _transactionStream.open(_transactionFile);
+  }
 
   bool messageOut = _messageFile != NULL;
   std::ofstream _messageStream;
@@ -144,8 +153,12 @@ void extractLatency(const char* _inputFile,
     aggregateStream.open(_aggregateFile);
   }
 
+  std::unordered_map<std::string, std::pair<u64, u64> > transTimes;
+
   std::vector<u64> pktLatency;
   std::vector<u64> msgLatency;
+  std::vector<u64> transLatency;
+
 
   bool inMsg = false;
   u64 msgEnd = 0;
@@ -164,22 +177,63 @@ void extractLatency(const char* _inputFile,
     u64 wordCount = split(line, &words);
     assert(wordCount > 0);
 
-    if (words[0] == "+M") {
+    if (words[0] == "+T") {
+      // create the transaction entry
+      bool res = transTimes.insert(
+          std::make_pair(words[1],
+                         std::make_pair(U64_MAX, U64_MAX))).second;
+      (void)res;  // unused
+      assert(res);
+    } else if (words[0] == "-T") {
+      // lookup the transaction entry
+      const std::pair<u64, u64>& transTime = transTimes.at(words[1]);
+      assert(transTime.second >= transTime.first);
+
+      // save transaction latency
+      transLatency.push_back(transTime.second - transTime.first);
+
+      // write transaction latency
+      if (transactionOut) {
+        _transactionStream << transTime.first << ',' <<
+            transTime.second << '\n';
+      }
+
+      // remoce transaction entry
+      u64 res = transTimes.erase(words[1]);
+      (void)res;  // unused
+      assert(res == 1);
+    } else if (words[0] == "+M") {
+      // handle the message state machine
       assert(inMsg == false);
       inMsg = true;
       msgEnd = 0;
       msgStart = U64_MAX;
     } else if (words[0] == "-M") {
+      // handle the message state machine
       assert(inMsg == true);
       assert(msgStart != U64_MAX);
       assert(msgEnd != 0);
       inMsg = false;
       assert(msgEnd >= msgStart);
+
+      // save message latency
       msgLatency.push_back(msgEnd - msgStart);
+
+      // write message latency
       if (messageOut) {
         _messageStream << msgStart << ',' << msgEnd << '\n';
       }
+
+      // update the transaction entry
+      std::pair<u64, u64>& transTime = transTimes.at(words[4]);
+      if ((transTime.first == U64_MAX) || (msgStart < transTime.first)) {
+        transTime.first = msgStart;
+      }
+      if ((transTime.second == U64_MAX) || (msgEnd > transTime.second)) {
+        transTime.second = msgEnd;
+      }
     } else if (words[0] == "+P") {
+      // handle the packet state machine
       assert(inMsg == true);
       assert(inPkt == false);
       inPkt = true;
@@ -230,10 +284,12 @@ void extractLatency(const char* _inputFile,
 
   std::sort(pktLatency.begin(), pktLatency.end());
   std::sort(msgLatency.begin(), msgLatency.end());
+  std::sort(transLatency.begin(), transLatency.end());
 
   if ((pktLatency.size() > 0) && (aggregateOut)) {
     Stats pktStats = meanStddev(pktLatency);
     Stats msgStats = meanStddev(msgLatency);
+    Stats transStats = meanStddev(transLatency);
 
     aggregateStream << "Type,";
     aggregateStream << "Count,";
@@ -296,10 +352,36 @@ void extractLatency(const char* _inputFile,
     aggregateStream << msgLatency.at(p99999) << ",";
     aggregateStream << msgStats.mean << ",";
     aggregateStream << msgStats.stdDev << "\n";
+
+    size = transLatency.size();
+    pmin = 0;
+    pmax = size - 1;
+    p50 = static_cast<u64>(round(pmax * 0.50));
+    p90 = static_cast<u64>(round(pmax * 0.90));
+    p99 = static_cast<u64>(round(pmax * 0.99));
+    p999 = static_cast<u64>(round(pmax * 0.999));
+    p9999 = static_cast<u64>(round(pmax * 0.9999));
+    p99999 = static_cast<u64>(round(pmax * 0.99999));
+
+    aggregateStream << "Transaction,";
+    aggregateStream << transLatency.size() << ",";
+    aggregateStream << transLatency.at(pmin) << ",";
+    aggregateStream << transLatency.at(pmax) << ",";
+    aggregateStream << transLatency.at(p50) << ",";
+    aggregateStream << transLatency.at(p90) << ",";
+    aggregateStream << transLatency.at(p99) << ",";
+    aggregateStream << transLatency.at(p999) << ",";
+    aggregateStream << transLatency.at(p9999) << ",";
+    aggregateStream << transLatency.at(p99999) << ",";
+    aggregateStream << transStats.mean << ",";
+    aggregateStream << transStats.stdDev << "\n";
   }
 
   if (!useCin) {
     fileInputStream.close();
+  }
+  if (transactionOut) {
+    _transactionStream.close();
   }
   if (messageOut) {
     _messageStream.close();
@@ -318,6 +400,7 @@ void usage(char* exe) {
   printf("\n");
   printf("  Options:\n");
   printf("    -h         prints this message and exits\n");
+  printf("    -t FILE    specifies transaction output file (optional)\n");
   printf("    -m FILE    specifies message output file (optional)\n");
   printf("    -p FILE    specifies packet output file (optional)\n");
   printf("    -a FILE    specifies aggregate output file (optional)\n");
@@ -325,26 +408,30 @@ void usage(char* exe) {
 }
 
 s32 main(s32 _argc, char** _argv) {
-  char* messageFile   = NULL;
-  char* packetFile    = NULL;
+  char* transactionFile = NULL;
+  char* messageFile = NULL;
+  char* packetFile = NULL;
   char* aggregateFile = NULL;
 
   s32 help = 0;
 
   s32 c;
-  while ((c = getopt(_argc, _argv, "hm:p:a:")) != -1) {
+  while ((c = getopt(_argc, _argv, "ht:m:p:a:")) != -1) {
     switch (c) {
       case 'h':
         help = 1;
         break;
-      case 'a':
-        aggregateFile = optarg;
+      case 't':
+        transactionFile = optarg;
         break;
       case 'm':
         messageFile = optarg;
         break;
       case 'p':
         packetFile = optarg;
+        break;
+      case 'a':
+        aggregateFile = optarg;
         break;
       default:
         printf("unknown flag: %c\n", c);
@@ -360,13 +447,14 @@ s32 main(s32 _argc, char** _argv) {
 
   s32 numArgs = (_argc - optind);
   if (numArgs != 1) {
-    printf("this program requires one argument\n");
+    printf("this program requires at least one argument\n");
     usage(_argv[0]);
     return -1;
   }
 
   char* inputFile = _argv[optind];
 
-  extractLatency(inputFile, messageFile, packetFile, aggregateFile);
+  extractLatency(inputFile, transactionFile, messageFile, packetFile,
+                 aggregateFile);
   return 0;
 }
