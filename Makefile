@@ -6,8 +6,12 @@ SOURCE_BASE   := src
 MAIN_FILE     := src/main.cc
 
 #--------------------- External Libraries -------------------------------------#
-HEADER_DIRS   := ../libprim/inc
-STATIC_LIBS   := ../libprim/bld/libprim.a
+HEADER_DIRS   := \
+	../libprim/inc \
+	../libfio/inc
+STATIC_LIBS   := \
+	../libprim/bld/libprim.a \
+	../libfio/bld/libfio.a
 
 #--------------------- Cpp Lint -----------------------------------------------#
 LINT          := $(HOME)/.makeccpp/cpplint/cpplint.py
@@ -24,7 +28,7 @@ HDR_EXTS      := .h .tcc
 CXX_FLAGS     := -Wall -Wextra -pedantic -Wfatal-errors -std=c++11
 CXX_FLAGS     += -Wno-unused-parameter -Wno-variadic-macros
 CXX_FLAGS     += -march=native -g -O3 -flto
-LINK_FLAGS    :=
+LINK_FLAGS    := -lz
 
 #--------------------- Auto Makefile ------------------------------------------#
 include $(HOME)/.makeccpp/auto_bin.mk

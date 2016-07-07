@@ -28,6 +28,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+#include <fio/InFile.h>
+#include <fio/OutFile.h>
 #include <prim/prim.h>
 #include <unistd.h>
 
@@ -122,35 +124,27 @@ void extractLatency(const char* _inputFile,
                     const char* _packetFile,
                     const char* _aggregateFile) {
   assert(_inputFile != NULL);
-  std::ifstream fileInputStream;
-  bool useCin = strcmp(_inputFile, "-") == 0;
-  if (!useCin) {
-    fileInputStream.open(_inputFile);
-  }
-  std::istream& inputStream = useCin ? std::cin : fileInputStream;
 
-  bool transactionOut = _transactionFile != NULL;
-  std::ofstream _transactionStream;
-  if (transactionOut) {
-    _transactionStream.open(_transactionFile);
+  fio::InFile inFile(_inputFile);
+
+  fio::OutFile* transactionOut = nullptr;
+  if (_transactionFile != NULL) {
+    transactionOut = new fio::OutFile(_transactionFile);
   }
 
-  bool messageOut = _messageFile != NULL;
-  std::ofstream _messageStream;
-  if (messageOut) {
-    _messageStream.open(_messageFile);
+  fio::OutFile* messageOut = nullptr;
+  if (_messageFile != NULL) {
+    messageOut = new fio::OutFile(_messageFile);
   }
 
-  bool packetOut = _packetFile != NULL;
-  std::ofstream packetStream;
-  if (packetOut) {
-    packetStream.open(_packetFile);
+  fio::OutFile* packetOut = nullptr;
+  if (_packetFile != NULL) {
+    packetOut = new fio::OutFile(_packetFile);
   }
 
-  bool aggregateOut = _aggregateFile != NULL;
-  std::ofstream aggregateStream;
-  if (aggregateOut) {
-    aggregateStream.open(_aggregateFile);
+  fio::OutFile* aggregateOut = nullptr;
+  if (_aggregateFile != NULL) {
+    aggregateOut = new fio::OutFile(_aggregateFile);
   }
 
   std::unordered_map<std::string, std::pair<u64, u64> > transTimes;
@@ -170,7 +164,13 @@ void extractLatency(const char* _inputFile,
 
   std::string line;
   std::vector<std::string> words;
-  for (s64 lineNum = 1; std::getline(inputStream, line); lineNum++) {
+  for (s64 lineNum = 1; true; lineNum++) {
+    fio::InFile::Status sts = inFile.getLine(&line);
+    assert(sts != fio::InFile::Status::ERROR);
+    if (sts == fio::InFile::Status::END) {
+      break;
+    }
+
     line = trim(line);
 
     words.clear();
@@ -194,8 +194,8 @@ void extractLatency(const char* _inputFile,
 
       // write transaction latency
       if (transactionOut) {
-        _transactionStream << transTime.first << ',' <<
-            transTime.second << '\n';
+        transactionOut->write(std::to_string(transTime.first) + "," +
+                              std::to_string(transTime.second) + "\n");
       }
 
       // remoce transaction entry
@@ -221,7 +221,8 @@ void extractLatency(const char* _inputFile,
 
       // write message latency
       if (messageOut) {
-        _messageStream << msgStart << ',' << msgEnd << '\n';
+        messageOut->write(std::to_string(msgStart) + "," +
+                          std::to_string(msgEnd) + "\n");
       }
 
       // update the transaction entry
@@ -248,7 +249,8 @@ void extractLatency(const char* _inputFile,
       assert(pktEnd >= pktStart);
       pktLatency.push_back(pktEnd - pktStart);
       if (packetOut) {
-        packetStream << pktStart << ',' << pktEnd << '\n';
+        packetOut->write(std::to_string(pktStart) + "," +
+                         std::to_string(pktEnd) + "\n");
       }
     } else if (words[0] == "F") {
       assert(inMsg == true);
@@ -291,18 +293,18 @@ void extractLatency(const char* _inputFile,
     Stats msgStats = meanStddev(msgLatency);
     Stats transStats = meanStddev(transLatency);
 
-    aggregateStream << "Type,";
-    aggregateStream << "Count,";
-    aggregateStream << "Minimum,";
-    aggregateStream << "Maximum,";
-    aggregateStream << "Median,";
-    aggregateStream << "90th%,";
-    aggregateStream << "99th%,";
-    aggregateStream << "99.9th%,";
-    aggregateStream << "99.99th%,";
-    aggregateStream << "99.999th%,";
-    aggregateStream << "Mean,";
-    aggregateStream << "StdDev\n";
+    aggregateOut->write("Type,");
+    aggregateOut->write("Count,");
+    aggregateOut->write("Minimum,");
+    aggregateOut->write("Maximum,");
+    aggregateOut->write("Median,");
+    aggregateOut->write("90th%,");
+    aggregateOut->write("99th%,");
+    aggregateOut->write("99.9th%,");
+    aggregateOut->write("99.99th%,");
+    aggregateOut->write("99.999th%,");
+    aggregateOut->write("Mean,");
+    aggregateOut->write("StdDev\n");
 
     u64 pmin, pmax, p50, p90, p99, p999, p9999, p99999;
     u64 size;
@@ -317,18 +319,18 @@ void extractLatency(const char* _inputFile,
     p9999 = static_cast<u64>(round(pmax * 0.9999));
     p99999 = static_cast<u64>(round(pmax * 0.99999));
 
-    aggregateStream << "Packet,";
-    aggregateStream << pktLatency.size() << ",";
-    aggregateStream << pktLatency.at(pmin) << ",";
-    aggregateStream << pktLatency.at(pmax) << ",";
-    aggregateStream << pktLatency.at(p50) << ",";
-    aggregateStream << pktLatency.at(p90) << ",";
-    aggregateStream << pktLatency.at(p99) << ",";
-    aggregateStream << pktLatency.at(p999) << ",";
-    aggregateStream << pktLatency.at(p9999) << ",";
-    aggregateStream << pktLatency.at(p99999) << ",";
-    aggregateStream << pktStats.mean << ",";
-    aggregateStream << pktStats.stdDev << "\n";
+    aggregateOut->write("Packet,");
+    aggregateOut->write(std::to_string(pktLatency.size()) + ",");
+    aggregateOut->write(std::to_string(pktLatency.at(pmin)) + ",");
+    aggregateOut->write(std::to_string(pktLatency.at(pmax)) + ",");
+    aggregateOut->write(std::to_string(pktLatency.at(p50)) + ",");
+    aggregateOut->write(std::to_string(pktLatency.at(p90)) + ",");
+    aggregateOut->write(std::to_string(pktLatency.at(p99)) + ",");
+    aggregateOut->write(std::to_string(pktLatency.at(p999)) + ",");
+    aggregateOut->write(std::to_string(pktLatency.at(p9999)) + ",");
+    aggregateOut->write(std::to_string(pktLatency.at(p99999)) + ",");
+    aggregateOut->write(std::to_string(pktStats.mean) + ",");
+    aggregateOut->write(std::to_string(pktStats.stdDev) + "\n");
 
     size = msgLatency.size();
     pmin = 0;
@@ -340,18 +342,18 @@ void extractLatency(const char* _inputFile,
     p9999 = static_cast<u64>(round(pmax * 0.9999));
     p99999 = static_cast<u64>(round(pmax * 0.99999));
 
-    aggregateStream << "Message,";
-    aggregateStream << msgLatency.size() << ",";
-    aggregateStream << msgLatency.at(pmin) << ",";
-    aggregateStream << msgLatency.at(pmax) << ",";
-    aggregateStream << msgLatency.at(p50) << ",";
-    aggregateStream << msgLatency.at(p90) << ",";
-    aggregateStream << msgLatency.at(p99) << ",";
-    aggregateStream << msgLatency.at(p999) << ",";
-    aggregateStream << msgLatency.at(p9999) << ",";
-    aggregateStream << msgLatency.at(p99999) << ",";
-    aggregateStream << msgStats.mean << ",";
-    aggregateStream << msgStats.stdDev << "\n";
+    aggregateOut->write("Message,");
+    aggregateOut->write(std::to_string(msgLatency.size()) + ",");
+    aggregateOut->write(std::to_string(msgLatency.at(pmin)) + ",");
+    aggregateOut->write(std::to_string(msgLatency.at(pmax)) + ",");
+    aggregateOut->write(std::to_string(msgLatency.at(p50)) + ",");
+    aggregateOut->write(std::to_string(msgLatency.at(p90)) + ",");
+    aggregateOut->write(std::to_string(msgLatency.at(p99)) + ",");
+    aggregateOut->write(std::to_string(msgLatency.at(p999)) + ",");
+    aggregateOut->write(std::to_string(msgLatency.at(p9999)) + ",");
+    aggregateOut->write(std::to_string(msgLatency.at(p99999)) + ",");
+    aggregateOut->write(std::to_string(msgStats.mean) + ",");
+    aggregateOut->write(std::to_string(msgStats.stdDev) + "\n");
 
     size = transLatency.size();
     pmin = 0;
@@ -363,34 +365,31 @@ void extractLatency(const char* _inputFile,
     p9999 = static_cast<u64>(round(pmax * 0.9999));
     p99999 = static_cast<u64>(round(pmax * 0.99999));
 
-    aggregateStream << "Transaction,";
-    aggregateStream << transLatency.size() << ",";
-    aggregateStream << transLatency.at(pmin) << ",";
-    aggregateStream << transLatency.at(pmax) << ",";
-    aggregateStream << transLatency.at(p50) << ",";
-    aggregateStream << transLatency.at(p90) << ",";
-    aggregateStream << transLatency.at(p99) << ",";
-    aggregateStream << transLatency.at(p999) << ",";
-    aggregateStream << transLatency.at(p9999) << ",";
-    aggregateStream << transLatency.at(p99999) << ",";
-    aggregateStream << transStats.mean << ",";
-    aggregateStream << transStats.stdDev << "\n";
+    aggregateOut->write("Transaction,");
+    aggregateOut->write(std::to_string(transLatency.size()) + ",");
+    aggregateOut->write(std::to_string(transLatency.at(pmin)) + ",");
+    aggregateOut->write(std::to_string(transLatency.at(pmax)) + ",");
+    aggregateOut->write(std::to_string(transLatency.at(p50)) + ",");
+    aggregateOut->write(std::to_string(transLatency.at(p90)) + ",");
+    aggregateOut->write(std::to_string(transLatency.at(p99)) + ",");
+    aggregateOut->write(std::to_string(transLatency.at(p999)) + ",");
+    aggregateOut->write(std::to_string(transLatency.at(p9999)) + ",");
+    aggregateOut->write(std::to_string(transLatency.at(p99999)) + ",");
+    aggregateOut->write(std::to_string(transStats.mean) + ",");
+    aggregateOut->write(std::to_string(transStats.stdDev) + "\n");
   }
 
-  if (!useCin) {
-    fileInputStream.close();
-  }
   if (transactionOut) {
-    _transactionStream.close();
+    delete transactionOut;
   }
   if (messageOut) {
-    _messageStream.close();
+    delete messageOut;
   }
   if (packetOut) {
-    packetStream.close();
+    delete packetOut;
   }
   if (aggregateOut) {
-    aggregateStream.close();
+    delete aggregateOut;
   }
 }
 
