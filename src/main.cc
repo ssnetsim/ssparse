@@ -175,7 +175,9 @@ void extractLatency(const char* _inputFile,
 
     words.clear();
     u64 wordCount = split(line, &words);
-    assert(wordCount > 0);
+    if (wordCount == 0) {
+      continue;  // probably the last line
+    }
 
     if (words[0] == "+T") {
       // create the transaction entry
