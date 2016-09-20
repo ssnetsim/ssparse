@@ -147,7 +147,7 @@ void extractLatency(const char* _inputFile,
     aggregateOut = new fio::OutFile(_aggregateFile);
   }
 
-  std::unordered_map<std::string, std::pair<u64, u64> > transTimes;
+  std::unordered_map<u64, std::pair<u64, u64> > transTimes;
 
   std::vector<u64> pktLatency;
   std::vector<u64> msgLatency;
@@ -157,6 +157,7 @@ void extractLatency(const char* _inputFile,
   bool inMsg = false;
   u64 msgEnd = 0;
   u64 msgStart = U64_MAX;
+  u64 msgTrans = U64_MAX;
 
   bool inPkt = false;
   u64 pktEnd = 0;
@@ -179,16 +180,27 @@ void extractLatency(const char* _inputFile,
       continue;  // probably the last line
     }
 
-    if (words[0] == "+T") {
+    if (words.at(0) == "+T") {
       // create the transaction entry
+      u64 trans;
+      if (toU64(words.at(1), & trans) == false) {
+        assert(false);
+      }
       bool res = transTimes.insert(
-          std::make_pair(words[1],
-                         std::make_pair(U64_MAX, U64_MAX))).second;
+          std::make_pair(trans, std::make_pair(U64_MAX, U64_MAX))).second;
       (void)res;  // unused
       assert(res);
-    } else if (words[0] == "-T") {
+    } else if (words.at(0) == "-T") {
       // lookup the transaction entry
-      const std::pair<u64, u64>& transTime = transTimes.at(words[1]);
+      u64 trans;
+      if (toU64(words.at(1), & trans) == false) {
+        assert(false);
+      }
+      const std::pair<u64, u64>& transTime = transTimes.at(trans);
+      if (transTime.second < transTime.first) {
+        fprintf(stderr, "last=%lu < first=%lu\n",
+                transTime.second, transTime.first);
+      }
       assert(transTime.second >= transTime.first);
 
       // save transaction latency
@@ -201,16 +213,19 @@ void extractLatency(const char* _inputFile,
       }
 
       // remoce transaction entry
-      u64 res = transTimes.erase(words[1]);
+      u64 res = transTimes.erase(trans);
       (void)res;  // unused
       assert(res == 1);
-    } else if (words[0] == "+M") {
-      // handle the message state machine
+    } else if (words.at(0) == "+M") {
       assert(inMsg == false);
+      // handle the message state machine
       inMsg = true;
       msgEnd = 0;
       msgStart = U64_MAX;
-    } else if (words[0] == "-M") {
+      if (toU64(words.at(4), &msgTrans) == false) {
+        assert(false);
+      }
+    } else if (words.at(0) == "-M") {
       // handle the message state machine
       assert(inMsg == true);
       assert(msgStart != U64_MAX);
@@ -228,21 +243,21 @@ void extractLatency(const char* _inputFile,
       }
 
       // update the transaction entry
-      std::pair<u64, u64>& transTime = transTimes.at(words[4]);
+      std::pair<u64, u64>& transTime = transTimes.at(msgTrans);
       if ((transTime.first == U64_MAX) || (msgStart < transTime.first)) {
         transTime.first = msgStart;
       }
       if ((transTime.second == U64_MAX) || (msgEnd > transTime.second)) {
         transTime.second = msgEnd;
       }
-    } else if (words[0] == "+P") {
+    } else if (words.at(0) == "+P") {
       // handle the packet state machine
       assert(inMsg == true);
       assert(inPkt == false);
       inPkt = true;
       pktEnd = 0;
       pktStart = U64_MAX;
-    } else if (words[0] == "-P") {
+    } else if (words.at(0) == "-P") {
       assert(inMsg == true);
       assert(inPkt == true);
       assert(pktStart != U64_MAX);
@@ -254,7 +269,7 @@ void extractLatency(const char* _inputFile,
         packetOut->write(std::to_string(pktStart) + "," +
                          std::to_string(pktEnd) + "\n");
       }
-    } else if (words[0] == "F") {
+    } else if (words.at(0) == "F") {
       assert(inMsg == true);
       assert(inPkt == true);
       u64 flitStart = 0;
