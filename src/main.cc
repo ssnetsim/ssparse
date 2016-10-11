@@ -31,6 +31,7 @@
 #include <fio/InFile.h>
 #include <fio/OutFile.h>
 #include <prim/prim.h>
+#include <tclap/CmdLine.h>
 #include <unistd.h>
 
 #include <cassert>
@@ -55,10 +56,20 @@ bool toU64(const std::string _str, u64* _value) {
   const char* cstr = _str.c_str();
   u64 val = strtoul(cstr, &end, 0);
   if ((end - cstr) < static_cast<s64>(_str.size())) {
+    fprintf(stderr, "non u64: %s\n", _str.c_str());
     return false;
   }
   *_value = val;
   return true;
+}
+
+bool u64ToF64(const std::string _str, f64 _scalar, f64* _value) {
+  u64 val;
+  bool res = toU64(_str, &val);
+  if (res) {
+    *_value = val * _scalar;
+  }
+  return res;
 }
 
 u64 split(const std::string& _str, std::vector<std::string>* _words) {
@@ -97,7 +108,7 @@ struct Stats {
   f64 stdDev;
 };
 
-Stats meanStddev(const std::vector<u64>& _vec) {
+Stats meanStddev(const std::vector<f64>& _vec) {
   Stats stats;
 
   f64 summation = 0;
@@ -109,7 +120,7 @@ Stats meanStddev(const std::vector<u64>& _vec) {
   f64 diffSquareSum = 0;
 
   for (auto it = _vec.begin(); it != _vec.end(); ++it) {
-    u64 element = *it;
+    f64 element = *it;
     diffSquareSum += pow((element - stats.mean), 2);
   }
 
@@ -118,50 +129,51 @@ Stats meanStddev(const std::vector<u64>& _vec) {
   return stats;
 }
 
-void extractLatency(const char* _inputFile,
-                    const char* _transactionFile,
-                    const char* _messageFile,
-                    const char* _packetFile,
-                    const char* _aggregateFile) {
-  assert(_inputFile != NULL);
+void extractLatency(const std::string& _inputFile,
+                    const std::string& _transactionFile,
+                    const std::string& _messageFile,
+                    const std::string& _packetFile,
+                    const std::string& _aggregateFile,
+                    f64 _scalar) {
+  assert(_inputFile.size() > 0);
 
   fio::InFile inFile(_inputFile);
 
   fio::OutFile* transactionOut = nullptr;
-  if (_transactionFile != NULL) {
+  if (_transactionFile.size() > 0) {
     transactionOut = new fio::OutFile(_transactionFile);
   }
 
   fio::OutFile* messageOut = nullptr;
-  if (_messageFile != NULL) {
+  if (_messageFile.size() > 0) {
     messageOut = new fio::OutFile(_messageFile);
   }
 
   fio::OutFile* packetOut = nullptr;
-  if (_packetFile != NULL) {
+  if (_packetFile.size() > 0) {
     packetOut = new fio::OutFile(_packetFile);
   }
 
   fio::OutFile* aggregateOut = nullptr;
-  if (_aggregateFile != NULL) {
+  if (_aggregateFile.size() > 0) {
     aggregateOut = new fio::OutFile(_aggregateFile);
   }
 
-  std::unordered_map<u64, std::pair<u64, u64> > transTimes;
+  std::unordered_map<u64, std::pair<f64, f64> > transTimes;
 
-  std::vector<u64> pktLatency;
-  std::vector<u64> msgLatency;
-  std::vector<u64> transLatency;
+  std::vector<f64> pktLatency;
+  std::vector<f64> msgLatency;
+  std::vector<f64> transLatency;
 
 
   bool inMsg = false;
-  u64 msgEnd = 0;
-  u64 msgStart = U64_MAX;
+  f64 msgEnd = 0;
+  f64 msgStart = U64_MAX;
   u64 msgTrans = U64_MAX;
 
   bool inPkt = false;
-  u64 pktEnd = 0;
-  u64 pktStart = U64_MAX;
+  f64 pktEnd = 0;
+  f64 pktStart = U64_MAX;
 
   std::string line;
   std::vector<std::string> words;
@@ -183,24 +195,21 @@ void extractLatency(const char* _inputFile,
     if (words.at(0) == "+T") {
       // create the transaction entry
       u64 trans;
-      if (toU64(words.at(1), & trans) == false) {
+      if (toU64(words.at(1), &trans) == false) {
         assert(false);
       }
       bool res = transTimes.insert(
-          std::make_pair(trans, std::make_pair(U64_MAX, U64_MAX))).second;
+          std::make_pair(trans, std::make_pair(
+              F64_POS_INF, F64_POS_INF))).second;
       (void)res;  // unused
       assert(res);
     } else if (words.at(0) == "-T") {
       // lookup the transaction entry
       u64 trans;
-      if (toU64(words.at(1), & trans) == false) {
+      if (toU64(words.at(1), &trans) == false) {
         assert(false);
       }
-      const std::pair<u64, u64>& transTime = transTimes.at(trans);
-      if (transTime.second < transTime.first) {
-        fprintf(stderr, "last=%lu < first=%lu\n",
-                transTime.second, transTime.first);
-      }
+      const std::pair<f64, f64>& transTime = transTimes.at(trans);
       assert(transTime.second >= transTime.first);
 
       // save transaction latency
@@ -220,16 +229,16 @@ void extractLatency(const char* _inputFile,
       assert(inMsg == false);
       // handle the message state machine
       inMsg = true;
-      msgEnd = 0;
-      msgStart = U64_MAX;
+      msgEnd = 0.0;
+      msgStart = F64_POS_INF;
       if (toU64(words.at(4), &msgTrans) == false) {
         assert(false);
       }
     } else if (words.at(0) == "-M") {
       // handle the message state machine
       assert(inMsg == true);
-      assert(msgStart != U64_MAX);
-      assert(msgEnd != 0);
+      assert(msgStart != F64_POS_INF);
+      assert(msgEnd != 0.0);
       inMsg = false;
       assert(msgEnd >= msgStart);
 
@@ -243,11 +252,11 @@ void extractLatency(const char* _inputFile,
       }
 
       // update the transaction entry
-      std::pair<u64, u64>& transTime = transTimes.at(msgTrans);
-      if ((transTime.first == U64_MAX) || (msgStart < transTime.first)) {
+      std::pair<f64, f64>& transTime = transTimes.at(msgTrans);
+      if ((transTime.first == F64_POS_INF) || (msgStart < transTime.first)) {
         transTime.first = msgStart;
       }
-      if ((transTime.second == U64_MAX) || (msgEnd > transTime.second)) {
+      if ((transTime.second == F64_POS_INF) || (msgEnd > transTime.second)) {
         transTime.second = msgEnd;
       }
     } else if (words.at(0) == "+P") {
@@ -255,13 +264,13 @@ void extractLatency(const char* _inputFile,
       assert(inMsg == true);
       assert(inPkt == false);
       inPkt = true;
-      pktEnd = 0;
-      pktStart = U64_MAX;
+      pktEnd = 0.0;
+      pktStart = F64_POS_INF;
     } else if (words.at(0) == "-P") {
       assert(inMsg == true);
       assert(inPkt == true);
-      assert(pktStart != U64_MAX);
-      assert(pktEnd != 0);
+      assert(pktStart != F64_POS_INF);
+      assert(pktEnd != 0.0);
       inPkt = false;
       assert(pktEnd >= pktStart);
       pktLatency.push_back(pktEnd - pktStart);
@@ -272,12 +281,12 @@ void extractLatency(const char* _inputFile,
     } else if (words.at(0) == "F") {
       assert(inMsg == true);
       assert(inPkt == true);
-      u64 flitStart = 0;
-      u64 flitEnd = 0;
-      if (toU64(words.at(2), &flitStart) == false) {
+      f64 flitStart = 0.0;
+      f64 flitEnd = 0.0;
+      if (u64ToF64(words.at(2), _scalar, &flitStart) == false) {
         assert(false);
       }
-      if (toU64(words.at(3), &flitEnd) == false) {
+      if (u64ToF64(words.at(3), _scalar, &flitEnd) == false) {
         assert(false);
       }
       assert(flitEnd >= flitStart);
@@ -323,18 +332,18 @@ void extractLatency(const char* _inputFile,
     aggregateOut->write("Mean,");
     aggregateOut->write("StdDev\n");
 
-    u64 pmin, pmax, p50, p90, p99, p999, p9999, p99999;
+    f64 pmin, pmax, p50, p90, p99, p999, p9999, p99999;
     u64 size;
 
     size = pktLatency.size();
     pmin = 0;
     pmax = size - 1;
-    p50 = static_cast<u64>(round(pmax * 0.50));
-    p90 = static_cast<u64>(round(pmax * 0.90));
-    p99 = static_cast<u64>(round(pmax * 0.99));
-    p999 = static_cast<u64>(round(pmax * 0.999));
-    p9999 = static_cast<u64>(round(pmax * 0.9999));
-    p99999 = static_cast<u64>(round(pmax * 0.99999));
+    p50 = round(pmax * 0.50);
+    p90 = round(pmax * 0.90);
+    p99 = round(pmax * 0.99);
+    p999 = round(pmax * 0.999);
+    p9999 = round(pmax * 0.9999);
+    p99999 = round(pmax * 0.99999);
 
     aggregateOut->write("Packet,");
     aggregateOut->write(std::to_string(pktLatency.size()) + ",");
@@ -352,12 +361,12 @@ void extractLatency(const char* _inputFile,
     size = msgLatency.size();
     pmin = 0;
     pmax = size - 1;
-    p50 = static_cast<u64>(round(pmax * 0.50));
-    p90 = static_cast<u64>(round(pmax * 0.90));
-    p99 = static_cast<u64>(round(pmax * 0.99));
-    p999 = static_cast<u64>(round(pmax * 0.999));
-    p9999 = static_cast<u64>(round(pmax * 0.9999));
-    p99999 = static_cast<u64>(round(pmax * 0.99999));
+    p50 = round(pmax * 0.50);
+    p90 = round(pmax * 0.90);
+    p99 = round(pmax * 0.99);
+    p999 = round(pmax * 0.999);
+    p9999 = round(pmax * 0.9999);
+    p99999 = round(pmax * 0.99999);
 
     aggregateOut->write("Message,");
     aggregateOut->write(std::to_string(msgLatency.size()) + ",");
@@ -375,12 +384,12 @@ void extractLatency(const char* _inputFile,
     size = transLatency.size();
     pmin = 0;
     pmax = size - 1;
-    p50 = static_cast<u64>(round(pmax * 0.50));
-    p90 = static_cast<u64>(round(pmax * 0.90));
-    p99 = static_cast<u64>(round(pmax * 0.99));
-    p999 = static_cast<u64>(round(pmax * 0.999));
-    p9999 = static_cast<u64>(round(pmax * 0.9999));
-    p99999 = static_cast<u64>(round(pmax * 0.99999));
+    p50 = round(pmax * 0.50);
+    p90 = round(pmax * 0.90);
+    p99 = round(pmax * 0.99);
+    p999 = round(pmax * 0.999);
+    p9999 = round(pmax * 0.9999);
+    p99999 = round(pmax * 0.99999);
 
     aggregateOut->write("Transaction,");
     aggregateOut->write(std::to_string(transLatency.size()) + ",");
@@ -424,53 +433,57 @@ void usage(char* exe) {
 }
 
 s32 main(s32 _argc, char** _argv) {
-  char* transactionFile = NULL;
-  char* messageFile = NULL;
-  char* packetFile = NULL;
-  char* aggregateFile = NULL;
+  std::string inputFile;
+  std::string transactionFile;
+  std::string messageFile;
+  std::string packetFile;
+  std::string aggregateFile;
+  f64 scalar;
 
-  s32 help = 0;
+  std::string description =
+      ("Parse and analyze SuperSim latency files (.mpf). Copyright (c) 2016. "
+       "Nic McDonald. See LICENSE file for details.");
 
-  s32 c;
-  while ((c = getopt(_argc, _argv, "ht:m:p:a:")) != -1) {
-    switch (c) {
-      case 'h':
-        help = 1;
-        break;
-      case 't':
-        transactionFile = optarg;
-        break;
-      case 'm':
-        messageFile = optarg;
-        break;
-      case 'p':
-        packetFile = optarg;
-        break;
-      case 'a':
-        aggregateFile = optarg;
-        break;
-      default:
-        printf("unknown flag: %c\n", c);
-        usage(_argv[0]);
-        return -1;
-    }
+  try {
+    // create the command line parser
+    TCLAP::CmdLine cmd(description, ' ', "1.0");
+
+    // define command line args
+    TCLAP::UnlabeledValueArg<std::string> inputFileArg(
+        "inputfile", "input file to be parsed",
+        true, "", "filename", cmd);
+    TCLAP::ValueArg<std::string> transactionFileArg(
+        "t", "transactionfile", "output transaction latencies file",
+        false, "", "filename", cmd);
+    TCLAP::ValueArg<std::string> messageFileArg(
+        "m", "messagefile", "output message latencies file",
+        false, "", "filename", cmd);
+    TCLAP::ValueArg<std::string> packetFileArg(
+        "p", "packetfile", "output packet latencies file",
+        false, "", "filename", cmd);
+    TCLAP::ValueArg<std::string> aggregateFileArg(
+        "a", "aggregatefile", "output aggregate latencies file",
+        false, "", "filename", cmd);
+    TCLAP::ValueArg<f64> scalarArg(
+        "s", "scalar", "latency scalar",
+        false, 1.0, "f64", cmd);
+
+    // parse the command line
+    cmd.parse(_argc, _argv);
+
+    // copy the values out to variables
+    inputFile = inputFileArg.getValue();
+    transactionFile = transactionFileArg.getValue();
+    messageFile = messageFileArg.getValue();
+    packetFile = packetFileArg.getValue();
+    aggregateFile = aggregateFileArg.getValue();
+    scalar = scalarArg.getValue();
+  } catch (TCLAP::ArgException& e) {
+    throw std::runtime_error(e.error().c_str());
   }
 
-  if (help) {
-    usage(_argv[0]);
-    return 0;
-  }
-
-  s32 numArgs = (_argc - optind);
-  if (numArgs != 1) {
-    printf("this program requires at least one argument\n");
-    usage(_argv[0]);
-    return -1;
-  }
-
-  char* inputFile = _argv[optind];
-
+  // run the parser
   extractLatency(inputFile, transactionFile, messageFile, packetFile,
-                 aggregateFile);
+                 aggregateFile, scalar);
   return 0;
 }
