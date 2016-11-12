@@ -415,7 +415,5 @@ void Engine::complete() {
     aggFile_->write(std::to_string(transMean) + ",");
     aggFile_->write(std::to_string(transVariance) + ",");
     aggFile_->write(std::to_string(transStdDev) + "\n");
-  } else {
-    printf("skipping agg\n");
   }
 }
