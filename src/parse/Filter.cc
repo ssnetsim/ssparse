@@ -109,13 +109,13 @@ Filter::Filter(const std::string& _description)
       try {
         start = toF64(firstLast.at(0));
       } catch (ex::Exception& _ex) {
-        throw ex::Exception("invalid range start: %s", firstLast.at(0));
+        throw ex::Exception("invalid range start: %s", firstLast.at(0).c_str());
       }
       f64 end;
       try {
         end = toF64(firstLast.at(1));
       } catch (ex::Exception& _ex) {
-        throw ex::Exception("invalid range end: %s", firstLast.at(1));
+        throw ex::Exception("invalid range end: %s", firstLast.at(1).c_str());
       }
       if (start < 0 || end < 0) {
         throw ex::Exception("time must be greater than 0");
