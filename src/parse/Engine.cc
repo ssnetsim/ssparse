@@ -123,13 +123,20 @@ Engine::Engine(const std::string& _transactionsFile,
 
 Engine::~Engine() {}
 
-void Engine::transactionStart(u64 _transId) {
+void Engine::transactionStart(u64 _transId, u64 _transStart) {
   // add a new transaction FSM
   transFsms_.emplace(_transId, TransFsm());
+  f64 transStartScaled = _transStart * scalar_;
+  transFsms_.at(_transId).start = transStartScaled;
 }
 
-void Engine::transactionEnd(u64 _transId) {
-  const Engine::TransFsm& transFsm = transFsms_.at(_transId);
+void Engine::transactionEnd(u64 _transId, u64 _transEnd) {
+  Engine::TransFsm& transFsm = transFsms_.at(_transId);
+
+  // finish the end time
+  f64 transEndScaled = _transEnd * scalar_;
+  assert(transEndScaled >= transFsm.end);
+  transFsm.end = transEndScaled;
 
   // determine if transaction will be logged
   bool logTransaction = true;
@@ -198,9 +205,7 @@ void Engine::messageEnd() {
 
   // update the transaction times
   Engine::TransFsm& transFsm = transFsms_.at(msgFsm_.transId);
-  if (msgFsm_.start < transFsm.start) {
-    transFsm.start = msgFsm_.start;
-  }
+  assert(msgFsm_.start >= transFsm.start);
   if (msgFsm_.end > transFsm.end) {
     transFsm.end = msgFsm_.end;
   }

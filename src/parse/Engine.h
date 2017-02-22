@@ -52,8 +52,8 @@ class Engine {
          const std::vector<std::string>& _filters);
   ~Engine();
 
-  void transactionStart(u64 _transId);
-  void transactionEnd(u64 _transId);
+  void transactionStart(u64 _transId, u64 _transStart);
+  void transactionEnd(u64 _transId, u64 _transEnd);
   void messageStart(u32 _msgId, u32 _msgSrc, u32 _msgDst, u64 _transId,
                     u32 _trafficClass);
   void messageEnd();
@@ -87,7 +87,7 @@ class Engine {
     u32 pktCount;
     u32 flitCount;
   };
-  std::unordered_map<u64, TransFsm > transFsms_;
+  std::unordered_map<u64, TransFsm> transFsms_;
 
   // message state machine
   struct MsgFsm {

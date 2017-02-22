@@ -140,11 +140,13 @@ s32 main(s32 _argc, char** _argv) {
     if (words.at(0) == "+T") {
       // parse the transaction start command
       u64 transId = toU64(words.at(1));
-      engine.transactionStart(transId);
+      u64 transStart = toU64(words.at(2));
+      engine.transactionStart(transId, transStart);
     } else if (words.at(0) == "-T") {
       // parse the transaction end command
       u64 transId = toU64(words.at(1));
-      engine.transactionEnd(transId);
+      u64 transEnd = toU64(words.at(2));
+      engine.transactionEnd(transId, transEnd);
     } else if (words.at(0) == "+M") {
       // parse the message start command
       u32 msgId = toU32(words.at(1));
