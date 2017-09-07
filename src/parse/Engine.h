@@ -48,7 +48,7 @@ class Engine {
          const std::string& _messagesFile,
          const std::string& _packetsFile,
          const std::string& _aggregateFile,
-         f64 _scalar,
+         f64 _scalar, bool _packetHeaderLatency,
          const std::vector<std::string>& _filters);
   ~Engine();
 
@@ -68,7 +68,8 @@ class Engine {
   std::shared_ptr<fio::OutFile> pktsFile_;
   std::shared_ptr<fio::OutFile> aggFile_;
 
-  f64 scalar_;
+  const f64 scalar_;
+  const bool packetHeaderLatency_;
   std::vector<std::shared_ptr<Filter> > filters_;
 
   // latency vectors for aggregate computations
@@ -81,6 +82,7 @@ class Engine {
     TransFsm();
     ~TransFsm();
     void reset();
+
     f64 start;
     f64 end;
     u32 msgCount;
@@ -114,8 +116,9 @@ class Engine {
     void reset();
 
     bool enabled;
-    f64 start;
-    f64 end;
+    f64 headStart;
+    f64 headEnd;
+    f64 tailEnd;
     u32 hopCount;
     u32 flitCount;
   };

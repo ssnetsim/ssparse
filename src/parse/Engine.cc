@@ -74,8 +74,9 @@ Engine::PktFsm::~PktFsm() {}
 
 void Engine::PktFsm::reset() {
   enabled = false;
-  start = F64_POS_INF;
-  end = F64_NEG_INF;
+  headStart = F64_POS_INF;
+  headEnd = F64_NEG_INF;
+  tailEnd = F64_NEG_INF;
   flitCount = 0;
 }
 
@@ -85,8 +86,9 @@ Engine::Engine(const std::string& _transactionsFile,
                const std::string& _messagesFile,
                const std::string& _packetsFile,
                const std::string& _aggregateFile,
-               f64 _scalar,
-               const std::vector<std::string>& _filters) {
+               f64 _scalar, bool _packetHeaderLatency,
+               const std::vector<std::string>& _filters)
+    : scalar_(_scalar), packetHeaderLatency_(_packetHeaderLatency) {
   if (_transactionsFile.size() > 0) {
     transFile_ = std::make_shared<fio::OutFile>(_transactionsFile);
   } else {
@@ -110,8 +112,6 @@ Engine::Engine(const std::string& _transactionsFile,
   } else {
     aggFile_ = nullptr;
   }
-
-  scalar_ = _scalar;
 
   for (const std::string& filter : _filters) {
     filters_.push_back(std::make_shared<Filter>(filter));
@@ -238,12 +238,15 @@ void Engine::packetEnd() {
     throw ex::Exception("Missing '+P'. File corrupted :(\n");
   }
 
+  // determine the right packet end time
+  f64 pktEnd = packetHeaderLatency_ ? pktFsm_.headEnd : pktFsm_.tailEnd;
+
   // determine if the packet will be logged
   bool logPacket = true;
   for (auto f : filters_) {
     if (!f->packet(
             msgFsm_.src, msgFsm_.dst, msgFsm_.transId, msgFsm_.trafficClass,
-            pktFsm_.start, pktFsm_.end, pktFsm_.hopCount, pktFsm_.flitCount)) {
+            pktFsm_.headStart, pktEnd, pktFsm_.hopCount, pktFsm_.flitCount)) {
       logPacket = false;
       break;
     }
@@ -251,19 +254,19 @@ void Engine::packetEnd() {
 
   // save the packet latency
   if (logPacket) {
-    pktLatencies_.push_back(pktFsm_.end - pktFsm_.start);
+    pktLatencies_.push_back(pktEnd - pktFsm_.headStart);
     if (pktsFile_) {
-      pktsFile_->write(std::to_string(pktFsm_.start) + "," +
-                       std::to_string(pktFsm_.end) + "\n");
+      pktsFile_->write(std::to_string(pktFsm_.headStart) + "," +
+                       std::to_string(pktEnd) + "\n");
     }
   }
 
   // update the message times
-  if (pktFsm_.start < msgFsm_.start) {
-    msgFsm_.start = pktFsm_.start;
+  if (pktFsm_.headStart < msgFsm_.start) {
+    msgFsm_.start = pktFsm_.headStart;
   }
-  if (pktFsm_.end > msgFsm_.end) {
-    msgFsm_.end = pktFsm_.end;
+  if (pktFsm_.tailEnd > msgFsm_.end) {
+    msgFsm_.end = pktFsm_.tailEnd;
   }
 
   // reset the state machine
@@ -293,11 +296,15 @@ void Engine::flit(u32 _flitId, u64 _flitSendTime, u64 _flitReceiveTime) {
   f64 recvTime = _flitReceiveTime * scalar_;
 
   // update th packet times
-  if (sendTime < pktFsm_.start) {
-    pktFsm_.start = sendTime;
+  if (_flitId == 0) {
+    pktFsm_.headStart = sendTime;
+    pktFsm_.headEnd = recvTime;
+  } else {
+    // flit 0 should always be earliest
+    assert(sendTime >= pktFsm_.headStart);
   }
-  if (recvTime > pktFsm_.end) {
-    pktFsm_.end = recvTime;
+  if (recvTime > pktFsm_.tailEnd) {
+    pktFsm_.tailEnd = recvTime;
   }
 }
 

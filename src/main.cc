@@ -40,18 +40,6 @@
 #include "parse/Engine.h"
 #include "parse/util.h"
 
-void usage(char* exe) {
-  printf("Usage:\n");
-  printf("  %s [options] <input file>\n", exe);
-  printf("\n");
-  printf("  Options:\n");
-  printf("    -h         prints this message and exits\n");
-  printf("    -t FILE    specifies transaction output file (optional)\n");
-  printf("    -m FILE    specifies message output file (optional)\n");
-  printf("    -p FILE    specifies packet output file (optional)\n");
-  printf("    -a FILE    specifies aggregate output file (optional)\n");
-  printf("\n");
-}
 
 s32 main(s32 _argc, char** _argv) {
   std::string inputFile;
@@ -60,11 +48,12 @@ s32 main(s32 _argc, char** _argv) {
   std::string packetFile;
   std::string aggregateFile;
   f64 scalar;
+  bool packetHeaderLatency;
   std::vector<std::string> filterStrs;
 
   std::string description =
-      ("Parse and analyze SuperSim latency files (.mpf). Copyright (c) 2016. "
-       "Nic McDonald. See LICENSE file for details.");
+      ("Parse and analyze SuperSim latency files (.mpf). "
+       "Nic McDonald. See LICENSE and NOTICE files for copyright details.");
 
   try {
     // create the command line parser
@@ -89,6 +78,9 @@ s32 main(s32 _argc, char** _argv) {
     TCLAP::ValueArg<f64> scalarArg(
         "s", "scalar", "latency scalar",
         false, 1.0, "f64", cmd);
+    TCLAP::SwitchArg packetHeaderLatencyArg(
+        "", "headerlatency", "use header latency for packets",
+        cmd, false);
     TCLAP::MultiArg<std::string> filterStrsArg(
         "f", "filter", "acceptance filters",
         false, "filter description", cmd);
@@ -103,6 +95,7 @@ s32 main(s32 _argc, char** _argv) {
     packetFile = packetFileArg.getValue();
     aggregateFile = aggregateFileArg.getValue();
     scalar = scalarArg.getValue();
+    packetHeaderLatency = packetHeaderLatencyArg.getValue();
     filterStrs = filterStrsArg.getValue();
   } catch (TCLAP::ArgException& e) {
     throw std::runtime_error(e.error().c_str());
@@ -110,7 +103,7 @@ s32 main(s32 _argc, char** _argv) {
 
   // create a processing engine
   Engine engine(transactionFile, messageFile, packetFile,
-                aggregateFile, scalar, filterStrs);
+                aggregateFile, scalar, packetHeaderLatency, filterStrs);
 
   // create input file object
   if (inputFile.size() == 0) {
