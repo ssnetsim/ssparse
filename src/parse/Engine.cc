@@ -32,8 +32,10 @@
 
 #include <ex/Exception.h>
 #include <mut/mut.h>
-
+#include <sstream>
 #include <algorithm>
+
+const f64 TOLERANCE = 1e-6;
 
 /*** State machine classes ***/
 
@@ -64,6 +66,7 @@ void Engine::MsgFsm::reset() {
   transId = U64_MAX;
   pktCount = 0;
   flitCount = 0;
+  minHopCount = 0;
 }
 
 Engine::PktFsm::PktFsm() {
@@ -78,6 +81,7 @@ void Engine::PktFsm::reset() {
   headEnd = F64_NEG_INF;
   tailEnd = F64_NEG_INF;
   flitCount = 0;
+  nonMinHopCount = 0;
 }
 
 /*** Engine class ***/
@@ -85,7 +89,8 @@ void Engine::PktFsm::reset() {
 Engine::Engine(const std::string& _transactionsFile,
                const std::string& _messagesFile,
                const std::string& _packetsFile,
-               const std::string& _aggregateFile,
+               const std::string& _latencyfile,
+               const std::string& _hopcountfile,
                f64 _scalar, bool _packetHeaderLatency,
                const std::vector<std::string>& _filters)
     : scalar_(_scalar), packetHeaderLatency_(_packetHeaderLatency) {
@@ -107,15 +112,32 @@ Engine::Engine(const std::string& _transactionsFile,
     pktsFile_ = nullptr;
   }
 
-  if (_aggregateFile.size() > 0) {
-    aggFile_ = std::make_shared<fio::OutFile>(_aggregateFile);
+  if (_latencyfile.size() > 0) {
+    latFile_ = std::make_shared<fio::OutFile>(_latencyfile);
   } else {
-    aggFile_ = nullptr;
+    latFile_ = nullptr;
+  }
+
+  if (_hopcountfile.size() > 0) {
+    hopsFile_ = std::make_shared<fio::OutFile>(_hopcountfile);
+  } else {
+    hopsFile_ = nullptr;
   }
 
   for (const std::string& filter : _filters) {
     filters_.push_back(std::make_shared<Filter>(filter));
   }
+
+  // initialize hop count variables
+  hopCounts_.resize(100, 0);
+  minHopCounts_.resize(100, 0);
+  nonMinHopCounts_.resize(100, 0);
+  pktCount_ = 0;
+  totalHops_ = 0;
+  minHops_ = 0;
+  nonMinHops_ = 0;
+  minPktCount_ = 0;
+  nonMinPktCount_ = 0;
 
   msgFsm_.reset();
   pktFsm_.reset();
@@ -142,8 +164,8 @@ void Engine::transactionEnd(u64 _transId, u64 _transEnd) {
   bool logTransaction = true;
   for (auto f : filters_) {
     if (!f->transaction(
-            _transId, transFsm.start, transFsm.end, transFsm.msgCount,
-            transFsm.pktCount, transFsm.flitCount)) {
+            _transId, transFsm.start, transFsm.end,
+            transFsm.msgCount, transFsm.pktCount, transFsm.flitCount)) {
       logTransaction = false;
       break;
     }
@@ -163,7 +185,7 @@ void Engine::transactionEnd(u64 _transId, u64 _transEnd) {
 }
 
 void Engine::messageStart(u32 _msgId, u32 _msgSrc, u32 _msgDst, u64 _transId,
-                          u32 _trafficClass) {
+                          u32 _trafficClass, u32 _minHopCount) {
   if (msgFsm_.enabled == true) {
     throw ex::Exception("Two '+M's without '-M'. File corrupted :(\n");
   }
@@ -172,6 +194,7 @@ void Engine::messageStart(u32 _msgId, u32 _msgSrc, u32 _msgDst, u64 _transId,
   msgFsm_.dst = _msgDst;
   msgFsm_.transId = _transId;
   msgFsm_.trafficClass = _trafficClass;
+  msgFsm_.minHopCount = _minHopCount;
 
   // count this message in the transaction
   Engine::TransFsm& transFsm = transFsms_.at(_transId);
@@ -187,8 +210,9 @@ void Engine::messageEnd() {
   bool logMessage = true;
   for (auto f : filters_) {
     if (!f->message(
-            msgFsm_.src, msgFsm_.dst, msgFsm_.transId, msgFsm_.trafficClass,
-            msgFsm_.start, msgFsm_.end, msgFsm_.pktCount, msgFsm_.flitCount)) {
+            msgFsm_.src, msgFsm_.dst, msgFsm_.transId,
+            msgFsm_.trafficClass, msgFsm_.start, msgFsm_.end,
+            msgFsm_.pktCount, msgFsm_.flitCount, msgFsm_.minHopCount)) {
       logMessage = false;
       break;
     }
@@ -199,7 +223,8 @@ void Engine::messageEnd() {
     msgLatencies_.push_back(msgFsm_.end - msgFsm_.start);
     if (msgsFile_) {
       msgsFile_->write(std::to_string(msgFsm_.start) + "," +
-                       std::to_string(msgFsm_.end) + "\n");
+                       std::to_string(msgFsm_.end) + "," +
+                       std::to_string(msgFsm_.minHopCount) + "\n");
     }
   }
 
@@ -223,6 +248,8 @@ void Engine::packetStart(u32 _pktId, u32 _pktHopCount) {
   }
   pktFsm_.enabled = true;
   pktFsm_.hopCount = _pktHopCount;
+  assert(_pktHopCount >= msgFsm_.minHopCount);
+  pktFsm_.nonMinHopCount = _pktHopCount - msgFsm_.minHopCount;
 
   // count this packet in the transaction and message
   Engine::TransFsm& transFsm = transFsms_.at(msgFsm_.transId);
@@ -245,8 +272,10 @@ void Engine::packetEnd() {
   bool logPacket = true;
   for (auto f : filters_) {
     if (!f->packet(
-            msgFsm_.src, msgFsm_.dst, msgFsm_.transId, msgFsm_.trafficClass,
-            pktFsm_.headStart, pktEnd, pktFsm_.hopCount, pktFsm_.flitCount)) {
+            msgFsm_.src, msgFsm_.dst, msgFsm_.transId,
+            msgFsm_.trafficClass, pktFsm_.headStart, pktEnd,
+            pktFsm_.flitCount, pktFsm_.hopCount, msgFsm_.minHopCount,
+            pktFsm_.nonMinHopCount)) {
       logPacket = false;
       break;
     }
@@ -255,9 +284,15 @@ void Engine::packetEnd() {
   // save the packet latency
   if (logPacket) {
     pktLatencies_.push_back(pktEnd - pktFsm_.headStart);
+    processHopCounts(pktFsm_.hopCount,
+                     msgFsm_.minHopCount,
+                     pktFsm_.nonMinHopCount);
     if (pktsFile_) {
       pktsFile_->write(std::to_string(pktFsm_.headStart) + "," +
-                       std::to_string(pktEnd) + "\n");
+                       std::to_string(pktEnd) + "," +
+                       std::to_string(pktFsm_.hopCount) + "," +
+                       std::to_string(msgFsm_.minHopCount) + "," +
+                       std::to_string(pktFsm_.nonMinHopCount) + "\n");
     }
   }
 
@@ -317,46 +352,265 @@ void Engine::complete() {
                         "Input file is likely corrupted.\n");
   }
 
-  // generate aggregate log
-  if (pktLatencies_.size() > 0 && aggFile_) {
-    // sort data
-    std::sort(transLatencies_.begin(), transLatencies_.end());
-    std::sort(msgLatencies_.begin(), msgLatencies_.end());
-    std::sort(pktLatencies_.begin(), pktLatencies_.end());
+  // generate aggregate total hops
+  if (hopsFile_) {
+    writeHopCountFile();
+  }
 
-    // complete arithmetic mean, variance, and standard deviation
-    f64 transMean = mut::arithmeticMean<f64>(transLatencies_);
-    f64 msgMean = mut::arithmeticMean<f64>(msgLatencies_);
-    f64 pktMean = mut::arithmeticMean<f64>(pktLatencies_);
+  // generate aggregate latency log
+  if (latFile_) {
+    writeLatencyFile();
+  }
+}
 
-    f64 transVariance = mut::variance<f64>(transLatencies_, transMean);
-    f64 msgVariance = mut::variance<f64>(msgLatencies_, msgMean);
-    f64 pktVariance = mut::variance<f64>(pktLatencies_, pktMean);
+void Engine::processHopCounts(u32 _hopCount, u32 _minHopCount,
+                              u32 _nonMinHopCount) {
+  pktCount_++;
+  totalHops_ += _hopCount;
+  minHops_ += _minHopCount;
+  nonMinHops_ += _nonMinHopCount;
 
-    f64 transStdDev = mut::standardDeviation<f64>(transVariance);
-    f64 msgStdDev = mut::standardDeviation<f64>(msgVariance);
-    f64 pktStdDev = mut::standardDeviation<f64>(pktVariance);
+  hopCounts_.at(_hopCount)++;  // [hopcount]
+  minHopCounts_.at(_minHopCount)++;  // [minhopcount]
+  nonMinHopCounts_.at(_nonMinHopCount)++;  // [nonminhopcount]
 
-    // write header
-    aggFile_->write("Type,");
-    aggFile_->write("Count,");
-    aggFile_->write("Minimum,");
-    aggFile_->write("Maximum,");
-    aggFile_->write("Median,");
-    aggFile_->write("90th%,");
-    aggFile_->write("99th%,");
-    aggFile_->write("99.9th%,");
-    aggFile_->write("99.99th%,");
-    aggFile_->write("99.999th%,");
-    aggFile_->write("Mean,");
-    aggFile_->write("Variance,");
-    aggFile_->write("StdDev\n");
+  (_nonMinHopCount > 0) ? (nonMinPktCount_++) : (minPktCount_++);
+}
 
-    f64 pmin, pmax, p50, p90, p99, p999, p9999, p99999;
-    u64 size;
+void Engine::writeHopCountFile() {
+  // range of hops
+  u32 startTotal = U32_MAX;
+  u32 endTotal = U32_MAX;
+  u32 startMin = U32_MAX;
+  u32 endMin = U32_MAX;
+  u32 startNonMin = U32_MAX;
+  u32 endNonMin = U32_MAX;
 
-    // write packet statistics
-    size = pktLatencies_.size();
+  // total
+  if (pktCount_ > 0) {
+    for (u32 s = 0; s < hopCounts_.size(); s++) {
+      if (hopCounts_[s] != 0) {
+        startTotal = s;
+        break;
+      }
+    }
+    for (s32 e = (s32)hopCounts_.size(); e >= 0; e--) {
+      if (hopCounts_[e] != 0) {
+        endTotal = e;
+        break;
+      }
+    }
+  }
+  // minimal
+  if (minPktCount_ > 0) {
+    for (u32 s = 0; s < minHopCounts_.size(); s++) {
+      if (minHopCounts_[s] != 0) {
+        startMin = s;
+        break;
+      }
+    }
+    for (s32 e = (s32)minHopCounts_.size(); e >= 0; e--) {
+      if (minHopCounts_[e] != 0) {
+        endMin = e;
+        break;
+      }
+    }
+  }
+  // non minimal
+  if (nonMinPktCount_ > 0) {
+    for (u32 s = 0; s < nonMinHopCounts_.size(); s++) {
+      if (nonMinHopCounts_[s] != 0) {
+        startNonMin = s;
+        break;
+      }
+    }
+    for (s32 e = (s32)nonMinHopCounts_.size(); e >= 0; e--) {
+      if (nonMinHopCounts_[e] != 0) {
+        endNonMin = e;
+        break;
+      }
+    }
+  }
+  // -- write header
+  std::stringstream ss;
+  // total
+  ss << "Type,AveHops,";
+  if (startTotal != U32_MAX && endTotal != U32_MAX) {
+    for (u32 i = startTotal; i <= endTotal; i++) {
+      ss << "PerHops" << std::to_string(i) << ",";
+    }
+  }
+  // minimal
+  ss << "AveMinHops,PerMinimal,";
+  if (startMin != U32_MAX && endMin != U32_MAX) {
+    for (u32 i = startMin; i <= endMin; i++) {
+      ss << "PerMinHops" << std::to_string(i) << ",";
+    }
+  }
+  // non minimal
+  ss << "AveNonMinHops,PerNonMinimal,";
+  if (startNonMin != U32_MAX && endNonMin != U32_MAX) {
+    for (u32 i = startNonMin; i <= endNonMin; i++) {
+      ss << "PerNonMinHops" << std::to_string(i) << ",";
+    }
+  }
+  std::string header = ss.str();
+  header.at(header.size() - 1) = '\n';
+  hopsFile_->write(header);
+
+  // -- write data
+  std::string data;
+  ss.str(std::string());
+  // total
+  ss << "Packet,";
+  if (pktCount_ > 0) {
+    f64 aveHops = (f64)totalHops_/(f64)pktCount_;
+    ss << std::to_string(aveHops) << ",";  // aveHops
+    if (startTotal != U32_MAX && endTotal != U32_MAX) {
+      for (u32 i = startTotal; i <= endTotal; i++) {
+        f64 perHops = (f64)hopCounts_[i]/(f64)pktCount_;
+        ss << std::to_string(perHops) << ",";  // perh
+      }
+    }
+    // minimal hops
+    f64 aveMinHops = (f64)minHops_/(f64)pktCount_;
+    f64 perMin = (f64)minPktCount_/(f64)pktCount_;
+    ss << std::to_string(aveMinHops) << "," << std::to_string(perMin) << ",";
+    if (startMin != U32_MAX && endMin != U32_MAX) {
+      f64 cumPerMinHops = 0.0;
+      for (u32 i = startMin; i <= endMin; i++) {
+        f64 perMinHops = (f64)minHopCounts_[i]/(f64)pktCount_;
+        cumPerMinHops += perMinHops;
+        ss << std::to_string(perMinHops) << ",";
+      }
+      assert(cumPerMinHops <= (1.00 + TOLERANCE) &&
+             cumPerMinHops >= (1.00 - TOLERANCE));
+    }
+    // nonminimal hops
+    f64 aveNonMinHops = (f64)nonMinHops_/(f64)pktCount_;
+    f64 perNonMin = (f64)nonMinPktCount_/(f64)pktCount_;
+    ss << std::to_string(aveNonMinHops) << ",";  // aveNMHops
+    ss << std::to_string(perNonMin) << ",";  // perNM
+    if (startNonMin != U32_MAX && endNonMin != U32_MAX) {
+      f64 cumPerNonMinHops = 0.0;
+      for (u32 i = startNonMin; i <= endNonMin; i++) {
+        f64 perNonMinHops = (f64)nonMinHopCounts_[i]/(f64)pktCount_;
+        cumPerNonMinHops += perNonMinHops;
+        ss << std::to_string(perNonMinHops) << ",";
+      }
+      assert(cumPerNonMinHops <= (1.00 + TOLERANCE) &&
+             cumPerNonMinHops >= (1.00 - TOLERANCE));
+    }
+    data = ss.str();
+    data.at(data.size() - 1) = '\n';
+
+    // asserts
+    f64 sumPerPkt = ((f64)minPktCount_/(f64)pktCount_) +
+        ((f64)nonMinPktCount_/(f64)pktCount_);
+    assert(minPktCount_+ nonMinPktCount_ == pktCount_);
+    assert(sumPerPkt <= (1.00 + TOLERANCE) && sumPerPkt >= (1.00 - TOLERANCE));
+  } else {
+    data = "Packet,nan,nan,nan,nan,nan\n";
+  }
+  hopsFile_->write(data);
+}
+
+void Engine::writeLatencyFile() {
+  // sort data
+  std::sort(transLatencies_.begin(), transLatencies_.end());
+  std::sort(msgLatencies_.begin(), msgLatencies_.end());
+  std::sort(pktLatencies_.begin(), pktLatencies_.end());
+
+  // complete arithmetic mean, variance, and standard deviation
+  f64 transMean = mut::arithmeticMean<f64>(transLatencies_);
+  f64 msgMean = mut::arithmeticMean<f64>(msgLatencies_);
+  f64 pktMean = mut::arithmeticMean<f64>(pktLatencies_);
+
+  f64 transVariance = mut::variance<f64>(transLatencies_, transMean);
+  f64 msgVariance = mut::variance<f64>(msgLatencies_, msgMean);
+  f64 pktVariance = mut::variance<f64>(pktLatencies_, pktMean);
+
+  f64 transStdDev = mut::standardDeviation<f64>(transVariance);
+  f64 msgStdDev = mut::standardDeviation<f64>(msgVariance);
+  f64 pktStdDev = mut::standardDeviation<f64>(pktVariance);
+
+  // write header
+  latFile_->write("Type,");
+  latFile_->write("Count,");
+  latFile_->write("Minimum,");
+  latFile_->write("Maximum,");
+  latFile_->write("Median,");
+  latFile_->write("90th%,");
+  latFile_->write("99th%,");
+  latFile_->write("99.9th%,");
+  latFile_->write("99.99th%,");
+  latFile_->write("99.999th%,");
+  latFile_->write("Mean,");
+  latFile_->write("Variance,");
+  latFile_->write("StdDev\n");
+
+  f64 pmin, pmax, p50, p90, p99, p999, p9999, p99999;
+  u64 size;
+
+  // write packet statistics
+  size = pktLatencies_.size();
+  latFile_->write("Packet,");
+  latFile_->write(std::to_string(size) + ",");
+  if (size > 0) {
+    pmin = 0;
+    pmax = size - 1;
+    p50 = round(pmax * 0.50);
+    p90 = round(pmax * 0.90);
+    p99 = round(pmax * 0.99);
+    p999 = round(pmax * 0.999);
+    p9999 = round(pmax * 0.9999);
+    p99999 = round(pmax * 0.99999);
+    latFile_->write(std::to_string(pktLatencies_.at(pmin)) + ",");
+    latFile_->write(std::to_string(pktLatencies_.at(pmax)) + ",");
+    latFile_->write(std::to_string(pktLatencies_.at(p50)) + ",");
+    latFile_->write(std::to_string(pktLatencies_.at(p90)) + ",");
+    latFile_->write(std::to_string(pktLatencies_.at(p99)) + ",");
+    latFile_->write(std::to_string(pktLatencies_.at(p999)) + ",");
+    latFile_->write(std::to_string(pktLatencies_.at(p9999)) + ",");
+    latFile_->write(std::to_string(pktLatencies_.at(p99999)) + ",");
+    latFile_->write(std::to_string(pktMean) + ",");
+    latFile_->write(std::to_string(pktVariance) + ",");
+    latFile_->write(std::to_string(pktStdDev) + "\n");
+  } else {
+    latFile_->write("nan,nan,nan,nan,nan,nan,nan,nan,nan,nan,nan\n");
+  }
+
+  size = msgLatencies_.size();
+  latFile_->write("Message,");
+  latFile_->write(std::to_string(size) + ",");
+  if (size > 0) {
+  pmin = 0;
+  pmax = size - 1;
+  p50 = round(pmax * 0.50);
+  p90 = round(pmax * 0.90);
+  p99 = round(pmax * 0.99);
+  p999 = round(pmax * 0.999);
+  p9999 = round(pmax * 0.9999);
+  p99999 = round(pmax * 0.99999);
+  latFile_->write(std::to_string(msgLatencies_.at(pmin)) + ",");
+  latFile_->write(std::to_string(msgLatencies_.at(pmax)) + ",");
+  latFile_->write(std::to_string(msgLatencies_.at(p50)) + ",");
+  latFile_->write(std::to_string(msgLatencies_.at(p90)) + ",");
+  latFile_->write(std::to_string(msgLatencies_.at(p99)) + ",");
+  latFile_->write(std::to_string(msgLatencies_.at(p999)) + ",");
+  latFile_->write(std::to_string(msgLatencies_.at(p9999)) + ",");
+  latFile_->write(std::to_string(msgLatencies_.at(p99999)) + ",");
+  latFile_->write(std::to_string(msgMean) + ",");
+  latFile_->write(std::to_string(msgVariance) + ",");
+  latFile_->write(std::to_string(msgStdDev) + "\n");
+  } else {
+    latFile_->write("nan,nan,nan,nan,nan,nan,nan,nan,nan,nan,nan\n");
+  }
+
+  size = transLatencies_.size();
+  latFile_->write("Transaction,");
+  latFile_->write(std::to_string(size) + ",");
+  if (size > 0) {
     pmin = 0;
     pmax = size - 1;
     p50 = round(pmax * 0.50);
@@ -366,66 +620,18 @@ void Engine::complete() {
     p9999 = round(pmax * 0.9999);
     p99999 = round(pmax * 0.99999);
 
-    aggFile_->write("Packet,");
-    aggFile_->write(std::to_string(pktLatencies_.size()) + ",");
-    aggFile_->write(std::to_string(pktLatencies_.at(pmin)) + ",");
-    aggFile_->write(std::to_string(pktLatencies_.at(pmax)) + ",");
-    aggFile_->write(std::to_string(pktLatencies_.at(p50)) + ",");
-    aggFile_->write(std::to_string(pktLatencies_.at(p90)) + ",");
-    aggFile_->write(std::to_string(pktLatencies_.at(p99)) + ",");
-    aggFile_->write(std::to_string(pktLatencies_.at(p999)) + ",");
-    aggFile_->write(std::to_string(pktLatencies_.at(p9999)) + ",");
-    aggFile_->write(std::to_string(pktLatencies_.at(p99999)) + ",");
-    aggFile_->write(std::to_string(pktMean) + ",");
-    aggFile_->write(std::to_string(pktVariance) + ",");
-    aggFile_->write(std::to_string(pktStdDev) + "\n");
-
-    size = msgLatencies_.size();
-    pmin = 0;
-    pmax = size - 1;
-    p50 = round(pmax * 0.50);
-    p90 = round(pmax * 0.90);
-    p99 = round(pmax * 0.99);
-    p999 = round(pmax * 0.999);
-    p9999 = round(pmax * 0.9999);
-    p99999 = round(pmax * 0.99999);
-
-    aggFile_->write("Message,");
-    aggFile_->write(std::to_string(msgLatencies_.size()) + ",");
-    aggFile_->write(std::to_string(msgLatencies_.at(pmin)) + ",");
-    aggFile_->write(std::to_string(msgLatencies_.at(pmax)) + ",");
-    aggFile_->write(std::to_string(msgLatencies_.at(p50)) + ",");
-    aggFile_->write(std::to_string(msgLatencies_.at(p90)) + ",");
-    aggFile_->write(std::to_string(msgLatencies_.at(p99)) + ",");
-    aggFile_->write(std::to_string(msgLatencies_.at(p999)) + ",");
-    aggFile_->write(std::to_string(msgLatencies_.at(p9999)) + ",");
-    aggFile_->write(std::to_string(msgLatencies_.at(p99999)) + ",");
-    aggFile_->write(std::to_string(msgMean) + ",");
-    aggFile_->write(std::to_string(msgVariance) + ",");
-    aggFile_->write(std::to_string(msgStdDev) + "\n");
-
-    size = transLatencies_.size();
-    pmin = 0;
-    pmax = size - 1;
-    p50 = round(pmax * 0.50);
-    p90 = round(pmax * 0.90);
-    p99 = round(pmax * 0.99);
-    p999 = round(pmax * 0.999);
-    p9999 = round(pmax * 0.9999);
-    p99999 = round(pmax * 0.99999);
-
-    aggFile_->write("Transaction,");
-    aggFile_->write(std::to_string(transLatencies_.size()) + ",");
-    aggFile_->write(std::to_string(transLatencies_.at(pmin)) + ",");
-    aggFile_->write(std::to_string(transLatencies_.at(pmax)) + ",");
-    aggFile_->write(std::to_string(transLatencies_.at(p50)) + ",");
-    aggFile_->write(std::to_string(transLatencies_.at(p90)) + ",");
-    aggFile_->write(std::to_string(transLatencies_.at(p99)) + ",");
-    aggFile_->write(std::to_string(transLatencies_.at(p999)) + ",");
-    aggFile_->write(std::to_string(transLatencies_.at(p9999)) + ",");
-    aggFile_->write(std::to_string(transLatencies_.at(p99999)) + ",");
-    aggFile_->write(std::to_string(transMean) + ",");
-    aggFile_->write(std::to_string(transVariance) + ",");
-    aggFile_->write(std::to_string(transStdDev) + "\n");
+    latFile_->write(std::to_string(transLatencies_.at(pmin)) + ",");
+    latFile_->write(std::to_string(transLatencies_.at(pmax)) + ",");
+    latFile_->write(std::to_string(transLatencies_.at(p50)) + ",");
+    latFile_->write(std::to_string(transLatencies_.at(p90)) + ",");
+    latFile_->write(std::to_string(transLatencies_.at(p99)) + ",");
+    latFile_->write(std::to_string(transLatencies_.at(p999)) + ",");
+    latFile_->write(std::to_string(transLatencies_.at(p9999)) + ",");
+    latFile_->write(std::to_string(transLatencies_.at(p99999)) + ",");
+    latFile_->write(std::to_string(transMean) + ",");
+    latFile_->write(std::to_string(transVariance) + ",");
+    latFile_->write(std::to_string(transStdDev) + "\n");
+  } else {
+    latFile_->write("nan,nan,nan,nan,nan,nan,nan,nan,nan,nan,nan\n");
   }
 }

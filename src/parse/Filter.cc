@@ -81,7 +81,13 @@ Filter::Filter(const std::string& _description)
   } else if (type == "hopcount" || type == "hc") {
     type_ = Filter::Type::HOPCOUNT;
     useFloats = false;
-  } else if (type == "messagecount" || type == "msgcount" || type == "mc") {
+  } else if (type == "minhopcount" || type == "mhc") {
+    type_ = Filter::Type::MINHOPCOUNT;
+    useFloats = false;
+  } else if (type == "nonminhopcount" || type == "nmhc") {
+    type_ = Filter::Type::NONMINHOPCOUNT;
+    useFloats = false;
+  }  else if (type == "messagecount" || type == "msgcount" || type == "mc") {
     type_ = Filter::Type::MESSAGECOUNT;
     useFloats = false;
   } else if (type == "packetcount" || type == "pktcount" || type == "pc") {
@@ -202,15 +208,17 @@ bool Filter::transaction(u64 _transId, f64 _start, f64 _end, u32 _numMsgs,
     case Filter::Type::SOURCE:
     case Filter::Type::DESTINATION:
     case Filter::Type::HOPCOUNT:
+    case Filter::Type::MINHOPCOUNT:
+    case Filter::Type::NONMINHOPCOUNT:
       return true;  // not applicable for transactions
-
     default:
       assert(false);
   }
 }
 
 bool Filter::message(u32 _src, u32 _dst, u64 _transId, u32 _trafficClass,
-                     f64 _start, f64 _end, u32 _numPkts, u32 _numFlits) {
+                     f64 _start, f64 _end, u32 _numPkts, u32 _numFlits,
+                     u32 _minHopCount) {
   u32 appId = (u32)(_transId >> 56);
 
   switch (type_) {
@@ -238,7 +246,11 @@ bool Filter::message(u32 _src, u32 _dst, u64 _transId, u32 _trafficClass,
     case Filter::Type::FLITCOUNT:
       return accept_ == (ints_.count(_numFlits) == 1);
 
+    case Filter::Type::MINHOPCOUNT:
+      return accept_ == (ints_.count(_minHopCount) == 1);
+
     case Filter::Type::HOPCOUNT:
+    case Filter::Type::NONMINHOPCOUNT:
     case Filter::Type::MESSAGECOUNT:
       return true;  // not applicable for messages
 
@@ -248,7 +260,8 @@ bool Filter::message(u32 _src, u32 _dst, u64 _transId, u32 _trafficClass,
 }
 
 bool Filter::packet(u32 _src, u32 _dst, u64 _transId, u32 _trafficClass,
-                    f64 _start, f64 _end, u32 _hopCount, u32 _numFlits) {
+                    f64 _start, f64 _end, u32 _numFlits,
+                    u32 _hopCount, u32 _minHopCount, u32 _nonMinHopCount) {
   u32 appId = (u32)(_transId >> 56);
 
   switch (type_) {
@@ -270,11 +283,17 @@ bool Filter::packet(u32 _src, u32 _dst, u64 _transId, u32 _trafficClass,
     case Filter::Type::DESTINATION:
       return accept_ == (ints_.count(_dst) == 1);
 
+    case Filter::Type::FLITCOUNT:
+      return accept_ == (ints_.count(_numFlits) == 1);
+
     case Filter::Type::HOPCOUNT:
       return accept_ == (ints_.count(_hopCount) == 1);
 
-    case Filter::Type::FLITCOUNT:
-      return accept_ == (ints_.count(_numFlits) == 1);
+    case Filter::Type::MINHOPCOUNT:
+      return accept_ == (ints_.count(_minHopCount) == 1);
+
+    case Filter::Type::NONMINHOPCOUNT:
+      return accept_ == (ints_.count(_nonMinHopCount) == 1);
 
     case Filter::Type::MESSAGECOUNT:
     case Filter::Type::PACKETCOUNT:
@@ -287,7 +306,7 @@ bool Filter::packet(u32 _src, u32 _dst, u64 _transId, u32 _trafficClass,
 
 bool Filter::inFloatRange(f64 _val) const {
   for (const std::pair<f64, f64>& range : floats_) {
-    if (_val >= range.first && _val <= range.second) {
+    if (_val >= range.first && _val < range.second) {
       return true;
     }
   }

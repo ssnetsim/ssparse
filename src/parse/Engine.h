@@ -47,7 +47,8 @@ class Engine {
   Engine(const std::string& _transactionsFile,
          const std::string& _messagesFile,
          const std::string& _packetsFile,
-         const std::string& _aggregateFile,
+         const std::string& _latencyfile,
+         const std::string& _hopcountfile,
          f64 _scalar, bool _packetHeaderLatency,
          const std::vector<std::string>& _filters);
   ~Engine();
@@ -55,7 +56,7 @@ class Engine {
   void transactionStart(u64 _transId, u64 _transStart);
   void transactionEnd(u64 _transId, u64 _transEnd);
   void messageStart(u32 _msgId, u32 _msgSrc, u32 _msgDst, u64 _transId,
-                    u32 _trafficClass);
+                    u32 _trafficClass, u32 _minHopCount);
   void messageEnd();
   void packetStart(u32 _pktId, u32 _pktHopCount);
   void packetEnd();
@@ -63,19 +64,39 @@ class Engine {
   void complete();
 
  private:
+  void writeLatencyFile();
+  void writeHopCountFile();
+  void processHopCounts(u32 _hopCount, u32 _minHopCount, u32 _nonMinHopCount);
+
   std::shared_ptr<fio::OutFile> transFile_;
   std::shared_ptr<fio::OutFile> msgsFile_;
   std::shared_ptr<fio::OutFile> pktsFile_;
-  std::shared_ptr<fio::OutFile> aggFile_;
+  std::shared_ptr<fio::OutFile> latFile_;
+  std::shared_ptr<fio::OutFile> hopsFile_;
 
   const f64 scalar_;
   const bool packetHeaderLatency_;
   std::vector<std::shared_ptr<Filter> > filters_;
 
   // latency vectors for aggregate computations
+  //  holds each latency sample
   std::vector<f64> transLatencies_;
   std::vector<f64> msgLatencies_;
   std::vector<f64> pktLatencies_;
+
+  // packet hop counts for aggregate computations
+  // hop counts
+  u64 pktCount_;
+  u64 totalHops_;
+  u64 minHops_;
+  u64 nonMinHops_;
+  std::vector<u64> hopCounts_;  // [hopcount]
+  std::vector<u64> minHopCounts_;  // [minhopcount]
+  std::vector<u64> nonMinHopCounts_;  // [nonminhopcount]
+
+  // packet counts
+  u64 minPktCount_;
+  u64 nonMinPktCount_;
 
   // transaction state machines
   struct TransFsm {
@@ -106,6 +127,7 @@ class Engine {
     u32 trafficClass;
     u32 pktCount;
     u32 flitCount;
+    u32 minHopCount;
   };
   MsgFsm msgFsm_;
 
@@ -121,6 +143,7 @@ class Engine {
     f64 tailEnd;
     u32 hopCount;
     u32 flitCount;
+    u32 nonMinHopCount;
   };
   PktFsm pktFsm_;
 };

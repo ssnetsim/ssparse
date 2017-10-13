@@ -46,7 +46,8 @@ s32 main(s32 _argc, char** _argv) {
   std::string transactionFile;
   std::string messageFile;
   std::string packetFile;
-  std::string aggregateFile;
+  std::string latencyfile;
+  std::string hopcountfile;
   f64 scalar;
   bool packetHeaderLatency;
   std::vector<std::string> filterStrs;
@@ -72,8 +73,11 @@ s32 main(s32 _argc, char** _argv) {
     TCLAP::ValueArg<std::string> packetFileArg(
         "p", "packetfile", "output packet latencies file",
         false, "", "filename", cmd);
-    TCLAP::ValueArg<std::string> aggregateFileArg(
-        "a", "aggregatefile", "output aggregate latencies file",
+    TCLAP::ValueArg<std::string> latencyFileArg(
+        "l", "latencyfile", "output aggregate latencies file",
+        false, "", "filename", cmd);
+    TCLAP::ValueArg<std::string> hopcountFileArg(
+        "c", "hopcountfile", "output aggregate hopcounts file",
         false, "", "filename", cmd);
     TCLAP::ValueArg<f64> scalarArg(
         "s", "scalar", "latency scalar",
@@ -93,7 +97,8 @@ s32 main(s32 _argc, char** _argv) {
     transactionFile = transactionFileArg.getValue();
     messageFile = messageFileArg.getValue();
     packetFile = packetFileArg.getValue();
-    aggregateFile = aggregateFileArg.getValue();
+    latencyfile = latencyFileArg.getValue();
+    hopcountfile = hopcountFileArg.getValue();
     scalar = scalarArg.getValue();
     packetHeaderLatency = packetHeaderLatencyArg.getValue();
     filterStrs = filterStrsArg.getValue();
@@ -103,7 +108,8 @@ s32 main(s32 _argc, char** _argv) {
 
   // create a processing engine
   Engine engine(transactionFile, messageFile, packetFile,
-                aggregateFile, scalar, packetHeaderLatency, filterStrs);
+                latencyfile, hopcountfile, scalar,
+                packetHeaderLatency, filterStrs);
 
   // create input file object
   if (inputFile.size() == 0) {
@@ -147,7 +153,9 @@ s32 main(s32 _argc, char** _argv) {
       u32 msgDst = toU32(words.at(3));
       u64 transId = toU64(words.at(4));
       u32 trafficClass = toU32(words.at(5));
-      engine.messageStart(msgId, msgSrc, msgDst, transId, trafficClass);
+      u32 minimalHops = toU32(words.at(6));
+      engine.messageStart(msgId, msgSrc, msgDst, transId, trafficClass,
+                          minimalHops);
     } else if (words.at(0) == "-M") {
       // parse the message end command
       engine.messageEnd();

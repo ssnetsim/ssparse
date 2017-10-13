@@ -45,15 +45,22 @@ class Filter {
 
   const std::string& description() const;
 
-  bool transaction(u64 _transId, f64 _start, f64 _end, u32 _numMsgs,
-                   u32 _numPkts, u32 _numFlits);
-  bool message(u32 _src, u32 _dst, u64 _transId, u32 _trafficClass, f64 _start,
-               f64 _end, u32 _numPkts, u32 _numFlits);
-  bool packet(u32 _src, u32 _dst, u64 _transId, u32 _trafficClass, f64 _start,
-              f64 _end, u32 _hopCount, u32 _numFlits);
+  bool transaction(u64 _transId, f64 _start, f64 _end,
+                   u32 _numMsgs, u32 _numPkts, u32 _numFlits);
+
+  bool message(u32 _src, u32 _dst, u64 _transId,
+               u32 _trafficClass, f64 _start, f64 _end,
+               u32 _numPkts, u32 _numFlits, u32 _minHopCount);
+
+  bool packet(u32 _src, u32 _dst, u64 _transId,
+              u32 _trafficClass, f64 _start, f64 _end,
+              u32 _numFlits, u32 _hopCount, u32 _minHopCount,
+              u32 _nonMinHopCount);
+
  private:
   enum class Type {APPLICATION, START, END, TRAFFICCLASS, SOURCE, DESTINATION,
-      HOPCOUNT, MESSAGECOUNT, PACKETCOUNT, FLITCOUNT};
+      HOPCOUNT, MINHOPCOUNT, NONMINHOPCOUNT, MESSAGECOUNT,
+      PACKETCOUNT, FLITCOUNT};
 
   bool inFloatRange(f64 _val) const;
 
