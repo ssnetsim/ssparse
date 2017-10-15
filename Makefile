@@ -1,5 +1,5 @@
 #--------------------- Basic Settings -----------------------------------------#
-PROGRAM_NAME   := sslatency
+PROGRAM_NAME   := ssparse
 BINARY_BASE    := bin
 BUILD_BASE     := bld
 SOURCE_BASE    := src
