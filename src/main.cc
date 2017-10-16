@@ -52,7 +52,7 @@ s32 main(s32 _argc, char** _argv) {
   std::vector<std::string> filterStrs;
 
   std::string description =
-      ("Parse and analyze SuperSim latency files (.mpf). "
+      ("Parse and analyze SuperSim output files (.mpf). "
        "Nic McDonald. See LICENSE and NOTICE files for copyright details.");
 
   try {
