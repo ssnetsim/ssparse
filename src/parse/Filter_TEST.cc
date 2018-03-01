@@ -64,15 +64,15 @@ TEST(Filter, minusApp) {
   ASSERT_FALSE(filter.transaction(100lu << 56, 0, 0, 0, 0, 0));
   ASSERT_TRUE(filter.transaction(99lu << 56, 0, 0, 0, 0, 0));
 
-  ASSERT_TRUE(filter.message(0, 0, 18lu << 56, 0, 0, 0, 0, 0, 0));
-  ASSERT_FALSE(filter.message(0, 0, 19lu << 56, 0, 0, 0, 0, 0, 0));
-  ASSERT_TRUE(filter.message(0, 0, 100lu << 56, 0, 0, 0, 0, 0, 0));
-  ASSERT_FALSE(filter.message(0, 0, 99lu << 56, 0, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.message(0, 0, 18lu << 56, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.message(0, 0, 19lu << 56, 0, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.message(0, 0, 100lu << 56, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.message(0, 0, 99lu << 56, 0, 0, 0, 0, 0, 0));
 
-  ASSERT_TRUE(filter.packet(0, 0, 18lu << 56, 0, 0, 0, 0, 0, 0, 0));
-  ASSERT_FALSE(filter.packet(0, 0, 19lu << 56, 0, 0, 0, 0, 0, 0, 0));
-  ASSERT_TRUE(filter.packet(0, 0, 100lu << 56, 0, 0, 0, 0, 0, 0, 0));
-  ASSERT_FALSE(filter.packet(0, 0, 99lu << 56, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 18lu << 56, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 19lu << 56, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 100lu << 56, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 99lu << 56, 0, 0, 0, 0, 0, 0, 0));
 }
 
 TEST(Filter, plusStart) {
@@ -321,10 +321,10 @@ TEST(Filter, minusHopCount) {
   ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 0));
   ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 0));
 
-  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 18lu, 0, 0));
-  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 19lu, 0, 0));
-  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 100lu, 0, 0));
-  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 99lu, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 18lu, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 19lu, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 100lu, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 99lu, 0, 0));
 }
 
 TEST(Filter, plusMinHopCount) {
@@ -338,9 +338,9 @@ TEST(Filter, plusMinHopCount) {
   ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
 
   ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 18lu));
-  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 19lu));
+  ASSERT_FALSE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 19lu));
   ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 100lu));
-  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 99lu));
+  ASSERT_FALSE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 99lu));
 
   ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 18lu, 0));
   ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 19lu, 0));
@@ -349,7 +349,7 @@ TEST(Filter, plusMinHopCount) {
 }
 
 TEST(Filter, minusMinHopCount) {
-  std::string desc = "-hopcount=0-9,10-18,100-250";
+  std::string desc = "-minhopcount=0-9,10-18,100-250";
   Filter filter(desc);
   ASSERT_EQ(desc, filter.description());
 
@@ -358,15 +358,15 @@ TEST(Filter, minusMinHopCount) {
   ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
   ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
 
-  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 18lu));
+  ASSERT_FALSE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 18lu));
   ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 19lu));
-  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 100lu));
+  ASSERT_FALSE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 100lu));
   ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 99lu));
 
-  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 18lu, 0));
-  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 19lu, 0));
-  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 100lu, 0));
-  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 99lu, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 18lu, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 19lu, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 100lu, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 99lu, 0));
 }
 
 TEST(Filter, plusNonMinHopCount) {
@@ -405,10 +405,10 @@ TEST(Filter, minusNonMinHopCount) {
   ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 100lu));
   ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 99lu));
 
-  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 18lu, 0));
-  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 19lu, 0));
-  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 100lu, 0));
-  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 99lu, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 0, 18lu));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 0, 19lu));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 0, 100lu));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 0, 99lu));
 }
 
 TEST(Filter, plusMessageCount) {
@@ -521,18 +521,18 @@ TEST(Filter, minusFlitCount) {
   Filter filter(desc);
   ASSERT_EQ(desc, filter.description());
 
-  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 18lu));
-  ASSERT_FALSE(filter.transaction(0, 0, 0, 0, 0, 19lu));
-  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 100lu));
-  ASSERT_FALSE(filter.transaction(0, 0, 0, 0, 0, 99lu));
+  ASSERT_FALSE(filter.transaction(0, 0, 0, 0, 0, 18lu));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 19lu));
+  ASSERT_FALSE(filter.transaction(0, 0, 0, 0, 0, 100lu));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 99lu));
 
-  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 18lu, 0));
-  ASSERT_FALSE(filter.message(0, 0, 0, 0, 0, 0, 0, 19lu, 0));
-  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 100lu, 0));
-  ASSERT_FALSE(filter.message(0, 0, 0, 0, 0, 0, 0, 99lu, 0));
+  ASSERT_FALSE(filter.message(0, 0, 0, 0, 0, 0, 0, 18lu, 0));
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 19lu, 0));
+  ASSERT_FALSE(filter.message(0, 0, 0, 0, 0, 0, 0, 100lu, 0));
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 99lu, 0));
 
-  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 18lu, 0, 0, 0));
-  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 19lu, 0, 0, 0));
-  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0,  100lu, 0, 0, 0));
-  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 99lu, 0, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 18lu, 0, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 19lu, 0, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0,  100lu, 0, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 99lu, 0, 0, 0));
 }
