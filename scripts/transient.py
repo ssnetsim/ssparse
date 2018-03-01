@@ -44,54 +44,58 @@ import gridstats
 
 def main(args):
   TOLERANCE = 1e-6
-  # read file
+
+  # read file to find start and end
   filename = args.infile
   opener = gzip.open if filename.endswith('.gz') else open
+  lines = 0
+  start = math.inf
+  end = 0
   with opener(filename, 'rb') as fd:
-    lines = fd.readlines()
+    for line in fd:
+      line = line.decode('utf-8').strip()
+      if line.find('F') != -1:
+        cols = line.split(',')
+        send_time = int(cols[2])
+        recv_time = int(cols[2])
+        if args.scalar:
+          send_time *= args.scalar
+          recv_time *= args.scalar
+        if send_time < start:
+          start = send_time
+        if recv_time > end:
+          end = recv_time
 
-  # start & end
-  s = math.inf
-  e = 0
-  for line in lines:
-    line = line.decode('utf-8').strip()
-    if line.find('F') != -1:
-      cols = line.split(',')
-      send_time = int(cols[2])
-      recv_time = int(cols[2])
-      if args.scalar:
-        send_time *= args.scalar
-        recv_time *= args.scalar
-      if send_time < s:
-        s = send_time
-      if recv_time > e:
-        e = recv_time
+  # check times
   if args.mintime and args.maxtime:
     assert args.mintime <= args.maxtime, "start must be <= end"
   if args.mintime:
-    assert args.mintime < e + TOLERANCE and args.mintime >= s - TOLERANCE,\
-    ("Start [" + str(args.mintime) + "] not in sim range: "\
-     + str(s) + "-" + str(e))
-    s = args.mintime
+    assert (args.mintime < end + TOLERANCE and
+            args.mintime >= start - TOLERANCE) \
+            ("Start [" + str(args.mintime) + "] not in sim range: " +
+             str(s) + "-" + str(e))
+    start = args.mintime
   if args.maxtime:
-    assert args.maxtime > s - TOLERANCE and args.maxtime <= e + TOLERANCE,\
-    ("End [" + str(args.maxtime) + "] not in sim range: "\
-     + str(s) + "-" + str(e))
-    e = args.maxtime
-  if s == math.inf or e == 0 :
+    assert (args.maxtime > start - TOLERANCE and
+            args.maxtime <= e + TOLERANCE) \
+            ("End [" + str(args.maxtime) + "] not in sim range: " +
+             + str(s) + "-" + str(e))
+    end = args.maxtime
+  if start == math.inf or end == 0:
     outfile = args.outfile
     opener = gzip.open if outfile.endswith('.gz') else open
-    open(outfile, 'w').close()
+    with opener(outfile, 'wb') as fd:
+      fd.write(''.encode('utf-8'))
     exit(0)
 
   # create buckets
   numBins = args.buckets
-  binWidth = (e - s) / numBins
-  binTimesOrg = numpy.linspace(s, e - binWidth, numBins)
-  binTimes = numpy.append(binTimesOrg, e)
+  binWidth = (end - start) / numBins
+  binTimesOrg = numpy.linspace(start, end - binWidth, numBins)
+  binTimes = numpy.append(binTimesOrg, end)
 
   print("Running ssparse for range {0}-{1} with {2} bins"
-        .format(s, e, numBins))
+        .format(start, end, numBins))
   # call bin -> tmp file
   hopFiles = []
   latFiles = []
@@ -123,7 +127,7 @@ def main(args):
 
     try:
       subprocess.run(cmd, check=True, shell=True)
-    except subprocess.CalledProcessError as e:
+    except subprocess.CalledProcessError:
       error = True
     if error:
       break
