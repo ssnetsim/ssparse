@@ -49,7 +49,7 @@ def main(args):
   filename = args.infile
   opener = gzip.open if filename.endswith('.gz') else open
   lines = 0
-  start = math.inf
+  start = float('inf')
   end = 0
   with opener(filename, 'rb') as fd:
     for line in fd:
@@ -81,7 +81,7 @@ def main(args):
             ("End [" + str(args.maxtime) + "] not in sim range: " +
              + str(s) + "-" + str(e))
     end = args.maxtime
-  if start == math.inf or end == 0:
+  if start == float('inf') or end == 0:
     outfile = args.outfile
     opener = gzip.open if outfile.endswith('.gz') else open
     with opener(outfile, 'wb') as fd:
