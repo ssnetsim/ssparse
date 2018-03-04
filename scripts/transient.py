@@ -126,7 +126,7 @@ def main(args):
         cmd += ' -f {0}'.format(filter)
 
     try:
-      subprocess.run(cmd, check=True, shell=True)
+      subprocess.check_call(cmd, shell=True)
     except subprocess.CalledProcessError:
       error = True
     if error:
