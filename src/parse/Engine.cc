@@ -248,8 +248,11 @@ void Engine::packetStart(u32 _pktId, u32 _pktHopCount) {
   }
   pktFsm_.enabled = true;
   pktFsm_.hopCount = _pktHopCount;
-  assert(_pktHopCount >= msgFsm_.minHopCount);
-  pktFsm_.nonMinHopCount = _pktHopCount - msgFsm_.minHopCount;
+  if (_pktHopCount >= msgFsm_.minHopCount) {
+    pktFsm_.nonMinHopCount = _pktHopCount - msgFsm_.minHopCount;
+  } else {
+    pktFsm_.nonMinHopCount = 0;
+  }
 
   // count this packet in the transaction and message
   Engine::TransFsm& transFsm = transFsms_.at(msgFsm_.transId);
@@ -370,9 +373,9 @@ void Engine::processHopCounts(u32 _hopCount, u32 _minHopCount,
   minHops_ += _minHopCount;
   nonMinHops_ += _nonMinHopCount;
 
-  hopCounts_.at(_hopCount)++;  // [hopcount]
-  minHopCounts_.at(_minHopCount)++;  // [minhopcount]
-  nonMinHopCounts_.at(_nonMinHopCount)++;  // [nonminhopcount]
+  hopCounts_.at(_hopCount)++;
+  minHopCounts_.at(_minHopCount)++;
+  nonMinHopCounts_.at(_nonMinHopCount)++;
 
   (_nonMinHopCount > 0) ? (nonMinPktCount_++) : (minPktCount_++);
 }
