@@ -18,13 +18,13 @@ COPTS = [
 ]
 
 LIBS = [
-  "@libprim//:lib",
-  "@libex//:lib",
-  "@libfio//:lib",
-  "@libstrop//:lib",
-  "@libmut//:lib",
-  "@tclap//:lib",
-  "@zlib//:lib",
+  "@libprim//:prim",
+  "@libex//:ex",
+  "@libfio//:fio",
+  "@libstrop//:strop",
+  "@libmut//:mut",
+  "@tclap//:tclap",
+  "@zlib//:zlib",
 ]
 
 cc_library(
@@ -53,7 +53,7 @@ cc_library(
 )
 
 cc_binary(
-  name = "bin",
+  name = "ssparse",
   srcs = ["src/main.cc"],
   includes = [
     "src",
@@ -85,7 +85,7 @@ cc_library(
 )
 
 cc_test(
-  name = "test",
+  name = "ssparse_test",
   copts = COPTS,
   deps = [
     ":test_lib",
