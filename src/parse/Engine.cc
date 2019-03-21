@@ -32,6 +32,9 @@
 
 #include <ex/Exception.h>
 #include <mut/mut.h>
+
+#include <cassert>
+
 #include <sstream>
 #include <algorithm>
 
@@ -186,7 +189,7 @@ void Engine::transactionEnd(u64 _transId, u64 _transEnd) {
 
 void Engine::messageStart(u32 _msgId, u32 _msgSrc, u32 _msgDst, u64 _transId,
                           u32 _trafficClass, u32 _minHopCount) {
-  (void)_msgId;  // UNUSED
+  (void)_msgId;  // unused
   if (msgFsm_.enabled == true) {
     throw ex::Exception("Two '+M's without '-M'. File corrupted :(\n");
   }
@@ -241,7 +244,7 @@ void Engine::messageEnd() {
 }
 
 void Engine::packetStart(u32 _pktId, u32 _pktHopCount) {
-  (void)_pktId;  // UNUSED
+  (void)_pktId;  // unused
   if (msgFsm_.enabled == false) {
     throw ex::Exception("Missing '+M'. File corrupted :(\n");
   }
