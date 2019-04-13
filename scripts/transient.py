@@ -32,25 +32,25 @@
 
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
-import gzip
 import argparse
+import simplecsv
+import gzip
 import math
 import numpy
 import os
 import subprocess
 import sys
 import tempfile
-import gridstats
 
 def main(args):
   TOLERANCE = 1e-6
 
   # read file to find start and end
   filename = args.infile
-  opener = gzip.open if filename.endswith('.gz') else open
   lines = 0
   start = float('inf')
   end = 0
+  opener = gzip.open if filename.endswith('.gz') else open
   with opener(filename, 'rb') as fd:
     for line in fd:
       line = line.decode('utf-8').strip()
@@ -146,12 +146,12 @@ def main(args):
   gridsHop = []
   assert(len(hopFiles) == len(latFiles))
   for hopfile, latfile in zip(hopFiles,latFiles):
-    gLat = gridstats.GridStats()
+    gLat = simplecsv.GridStats()
     gLat.read(latfile)
     gridsLat.append(gLat)
     currColsLat = gLat.column_names()
 
-    gHop = gridstats.GridStats()
+    gHop = simplecsv.GridStats()
     gHop.read(hopfile)
     gridsHop.append(gHop)
     currColsHop = gHop.column_names()
@@ -191,7 +191,7 @@ def main(args):
     os.remove(latfile)
 
   # write out.csv
-  fGrid = gridstats.GridStats()
+  fGrid = simplecsv.GridStats()
   fGrid.create('Time', binTimesOrg, sColsHop + uColsLat)
 
   assert len(gridsLat) == len(binTimesOrg) and len(gridsHop) == len(binTimesOrg)
@@ -213,12 +213,11 @@ if __name__ == '__main__':
                   help='input message log')
   ap.add_argument('outfile',
                   help='output csv file')
-
   ap.add_argument('-b', '--buckets', type=int, default=40,
                   help='number of time buckets')
   ap.add_argument('-m', '--mintime', type=float,
                   help='min send time')
-  ap.add_argument('-n', '--maxtime',type=float,
+  ap.add_argument('-n', '--maxtime', type=float,
                   help='max send time')
   ap.add_argument('-s', '--scalar', type=float,
                   help='time scalar')
