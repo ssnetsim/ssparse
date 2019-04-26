@@ -353,7 +353,7 @@ void Engine::flit(u32 _flitId, u64 _flitSendTime, u64 _flitReceiveTime) {
 
 void Engine::complete() {
   // check that all state machines completed
-  if ((transFsms_.size() != 0) ||
+  if ((!transFsms_.empty()) ||
       (msgFsm_.enabled == true) ||
       (pktFsm_.enabled == true)) {
     throw ex::Exception("ERROR: State machines didn't complete. "
