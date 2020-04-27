@@ -154,8 +154,9 @@ s32 main(s32 _argc, char** _argv) {
       u64 transId = toU64(words.at(4));
       u32 protocolClass = toU32(words.at(5));
       u32 minimalHops = toU32(words.at(6));
+      u32 opCode = toU32(words.at(7));
       engine.messageStart(msgId, msgSrc, msgDst, transId, protocolClass,
-                          minimalHops);
+                          minimalHops, opCode);
     } else if (words.at(0) == "-M") {
       // parse the message end command
       engine.messageEnd();

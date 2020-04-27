@@ -56,7 +56,7 @@ class Engine {
   void transactionStart(u64 _transId, u64 _transStart);
   void transactionEnd(u64 _transId, u64 _transEnd);
   void messageStart(u32 _msgId, u32 _msgSrc, u32 _msgDst, u64 _transId,
-                    u32 _protocolClass, u32 _minHopCount);
+                    u32 _protocolClass, u32 _minHopCount, u32 _opCode);
   void messageEnd();
   void packetStart(u32 _pktId, u32 _pktHopCount);
   void packetEnd();
@@ -128,6 +128,7 @@ class Engine {
     u32 pktCount;
     u32 flitCount;
     u32 minHopCount;
+    u32 opCode;
   };
   MsgFsm msgFsm_;
 
