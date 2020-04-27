@@ -49,16 +49,16 @@ class Filter {
                    u32 _numMsgs, u32 _numPkts, u32 _numFlits);
 
   bool message(u32 _src, u32 _dst, u64 _transId,
-               u32 _trafficClass, f64 _start, f64 _end,
+               u32 _protocolClass, f64 _start, f64 _end,
                u32 _numPkts, u32 _numFlits, u32 _minHopCount);
 
   bool packet(u32 _src, u32 _dst, u64 _transId,
-              u32 _trafficClass, f64 _start, f64 _end,
+              u32 _protocolClass, f64 _start, f64 _end,
               u32 _numFlits, u32 _hopCount, u32 _minHopCount,
               u32 _nonMinHopCount);
 
  private:
-  enum class Type {APPLICATION, START, END, TRAFFICCLASS, SOURCE, DESTINATION,
+  enum class Type {APPLICATION, START, END, PROTOCOLCLASS, SOURCE, DESTINATION,
       HOPCOUNT, MINHOPCOUNT, NONMINHOPCOUNT, MESSAGECOUNT,
       PACKETCOUNT, FLITCOUNT};
 

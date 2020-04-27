@@ -188,7 +188,7 @@ void Engine::transactionEnd(u64 _transId, u64 _transEnd) {
 }
 
 void Engine::messageStart(u32 _msgId, u32 _msgSrc, u32 _msgDst, u64 _transId,
-                          u32 _trafficClass, u32 _minHopCount) {
+                          u32 _protocolClass, u32 _minHopCount) {
   (void)_msgId;  // unused
   if (msgFsm_.enabled == true) {
     throw ex::Exception("Two '+M's without '-M'. File corrupted :(\n");
@@ -197,7 +197,7 @@ void Engine::messageStart(u32 _msgId, u32 _msgSrc, u32 _msgDst, u64 _transId,
   msgFsm_.src = _msgSrc;
   msgFsm_.dst = _msgDst;
   msgFsm_.transId = _transId;
-  msgFsm_.trafficClass = _trafficClass;
+  msgFsm_.protocolClass = _protocolClass;
   msgFsm_.minHopCount = _minHopCount;
 
   // count this message in the transaction
@@ -215,7 +215,7 @@ void Engine::messageEnd() {
   for (auto f : filters_) {
     if (!f->message(
             msgFsm_.src, msgFsm_.dst, msgFsm_.transId,
-            msgFsm_.trafficClass, msgFsm_.start, msgFsm_.end,
+            msgFsm_.protocolClass, msgFsm_.start, msgFsm_.end,
             msgFsm_.pktCount, msgFsm_.flitCount, msgFsm_.minHopCount)) {
       logMessage = false;
       break;
@@ -281,7 +281,7 @@ void Engine::packetEnd() {
   for (auto f : filters_) {
     if (!f->packet(
             msgFsm_.src, msgFsm_.dst, msgFsm_.transId,
-            msgFsm_.trafficClass, pktFsm_.headStart, pktEnd,
+            msgFsm_.protocolClass, pktFsm_.headStart, pktEnd,
             pktFsm_.flitCount, pktFsm_.hopCount, msgFsm_.minHopCount,
             pktFsm_.nonMinHopCount)) {
       logPacket = false;
