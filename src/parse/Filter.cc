@@ -69,8 +69,8 @@ Filter::Filter(const std::string& _description)
   } else if (type == "end" || type == "recv") {
     type_ = Filter::Type::END;
     useFloats = true;
-  } else if (type == "trafficclass" || type == "tc") {
-    type_ = Filter::Type::TRAFFICCLASS;
+  } else if (type == "protocolclass" || type == "tc") {
+    type_ = Filter::Type::PROTOCOLCLASS;
     useFloats = false;
   } else if (type == "source" || type == "src") {
     type_ = Filter::Type::SOURCE;
@@ -204,7 +204,7 @@ bool Filter::transaction(u64 _transId, f64 _start, f64 _end, u32 _numMsgs,
     case Filter::Type::FLITCOUNT:
       return accept_ == (ints_.count(_numFlits) == 1);
 
-    case Filter::Type::TRAFFICCLASS:
+    case Filter::Type::PROTOCOLCLASS:
     case Filter::Type::SOURCE:
     case Filter::Type::DESTINATION:
     case Filter::Type::HOPCOUNT:
@@ -216,7 +216,7 @@ bool Filter::transaction(u64 _transId, f64 _start, f64 _end, u32 _numMsgs,
   }
 }
 
-bool Filter::message(u32 _src, u32 _dst, u64 _transId, u32 _trafficClass,
+bool Filter::message(u32 _src, u32 _dst, u64 _transId, u32 _protocolClass,
                      f64 _start, f64 _end, u32 _numPkts, u32 _numFlits,
                      u32 _minHopCount) {
   u32 appId = (u32)(_transId >> 56);
@@ -231,8 +231,8 @@ bool Filter::message(u32 _src, u32 _dst, u64 _transId, u32 _trafficClass,
     case Filter::Type::END:
       return accept_ == inFloatRange(_end);
 
-    case Filter::Type::TRAFFICCLASS:
-      return accept_ == (ints_.count(_trafficClass) == 1);
+    case Filter::Type::PROTOCOLCLASS:
+      return accept_ == (ints_.count(_protocolClass) == 1);
 
     case Filter::Type::SOURCE:
       return accept_ == (ints_.count(_src) == 1);
@@ -259,7 +259,7 @@ bool Filter::message(u32 _src, u32 _dst, u64 _transId, u32 _trafficClass,
   }
 }
 
-bool Filter::packet(u32 _src, u32 _dst, u64 _transId, u32 _trafficClass,
+bool Filter::packet(u32 _src, u32 _dst, u64 _transId, u32 _protocolClass,
                     f64 _start, f64 _end, u32 _numFlits,
                     u32 _hopCount, u32 _minHopCount, u32 _nonMinHopCount) {
   u32 appId = (u32)(_transId >> 56);
@@ -274,8 +274,8 @@ bool Filter::packet(u32 _src, u32 _dst, u64 _transId, u32 _trafficClass,
     case Filter::Type::END:
       return accept_ == inFloatRange(_end);
 
-    case Filter::Type::TRAFFICCLASS:
-      return accept_ == (ints_.count(_trafficClass) == 1);
+    case Filter::Type::PROTOCOLCLASS:
+      return accept_ == (ints_.count(_protocolClass) == 1);
 
     case Filter::Type::SOURCE:
       return accept_ == (ints_.count(_src) == 1);

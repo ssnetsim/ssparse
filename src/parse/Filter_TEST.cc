@@ -159,8 +159,8 @@ TEST(Filter, minusEnd) {
   ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 99.9, 0, 0, 0, 0));
 }
 
-TEST(Filter, plusTrafficClass) {
-  std::string desc = "+trafficclass=0-9,10-18,100-250";
+TEST(Filter, plusProtocolClass) {
+  std::string desc = "+protocolclass=0-9,10-18,100-250";
   Filter filter(desc);
   ASSERT_EQ(desc, filter.description());
 
@@ -180,8 +180,8 @@ TEST(Filter, plusTrafficClass) {
   ASSERT_FALSE(filter.packet(0, 0, 0, 99lu, 0, 0, 0, 0, 0, 0));
 }
 
-TEST(Filter, minusTrafficClass) {
-  std::string desc = "-trafficclass=0-9,10-18,100-250";
+TEST(Filter, minusProtocolClass) {
+  std::string desc = "-protocolclass=0-9,10-18,100-250";
   Filter filter(desc);
   ASSERT_EQ(desc, filter.description());
 
