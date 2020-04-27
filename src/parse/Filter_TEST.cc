@@ -33,6 +33,27 @@
 #include <gtest/gtest.h>
 #include <prim/prim.h>
 
+TEST(Filter, plusApplication) {
+  std::string desc = "+application=0-9,10-18,100-250";
+  Filter filter(desc);
+  ASSERT_EQ(desc, filter.description());
+
+  ASSERT_TRUE(filter.transaction(18lu << 56, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.transaction(19lu << 56, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(100lu << 56, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.transaction(99lu << 56, 0, 0, 0, 0, 0));
+
+  ASSERT_TRUE(filter.message(0, 0, 18lu << 56, 0, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.message(0, 0, 19lu << 56, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.message(0, 0, 100lu << 56, 0, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.message(0, 0, 99lu << 56, 0, 0, 0, 0, 0, 0));
+
+  ASSERT_TRUE(filter.packet(0, 0, 18lu << 56, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 19lu << 56, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 100lu << 56, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 99lu << 56, 0, 0, 0, 0, 0, 0, 0));
+}
+
 TEST(Filter, plusApp) {
   std::string desc = "+app=0-9,10-18,100-250";
   Filter filter(desc);
@@ -96,6 +117,27 @@ TEST(Filter, plusStart) {
   ASSERT_FALSE(filter.packet(0, 0, 0, 0, 99.9, 0, 0, 0, 0, 0));
 }
 
+TEST(Filter, plusSend) {
+  std::string desc = "+send=0-9,10-18,100-250";
+  Filter filter(desc);
+  ASSERT_EQ(desc, filter.description());
+
+  ASSERT_TRUE(filter.transaction(0, 17.9, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.transaction(0, 19.1, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 100.1, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.transaction(0, 99.9, 0, 0, 0, 0));
+
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 17.9, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.message(0, 0, 0, 0, 19.1, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 100.1, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.message(0, 0, 0, 0, 99.9, 0, 0, 0, 0));
+
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 17.9, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 19.1, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 100.1, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 99.9, 0, 0, 0, 0, 0));
+}
+
 TEST(Filter, minusStart) {
   std::string desc = "-start=0-9,10-18,100-250";
   Filter filter(desc);
@@ -119,6 +161,27 @@ TEST(Filter, minusStart) {
 
 TEST(Filter, plusEnd) {
   std::string desc = "+end=0-9,10-18,100-250";
+  Filter filter(desc);
+  ASSERT_EQ(desc, filter.description());
+
+  ASSERT_TRUE(filter.transaction(0, 0, 17.9, 0, 0, 0));
+  ASSERT_FALSE(filter.transaction(0, 0, 19.1, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 100.1, 0, 0, 0));
+  ASSERT_FALSE(filter.transaction(0, 0, 99.9, 0, 0, 0));
+
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 17.9, 0, 0, 0));
+  ASSERT_FALSE(filter.message(0, 0, 0, 0, 0, 19.1, 0, 0, 0));
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 100.1, 0, 0, 0));
+  ASSERT_FALSE(filter.message(0, 0, 0, 0, 0, 99.9, 0, 0, 0));
+
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 17.9, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 19.1, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 100.1, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 99.9, 0, 0, 0, 0));
+}
+
+TEST(Filter, plusRecv) {
+  std::string desc = "+recv=0-9,10-18,100-250";
   Filter filter(desc);
   ASSERT_EQ(desc, filter.description());
 
@@ -180,6 +243,27 @@ TEST(Filter, plusProtocolClass) {
   ASSERT_FALSE(filter.packet(0, 0, 0, 99lu, 0, 0, 0, 0, 0, 0));
 }
 
+TEST(Filter, plusPc) {
+  std::string desc = "+pc=0-9,10-18,100-250";
+  Filter filter(desc);
+  ASSERT_EQ(desc, filter.description());
+
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+
+  ASSERT_TRUE(filter.message(0, 0, 0, 18lu, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.message(0, 0, 0, 19lu, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.message(0, 0, 0, 100lu, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.message(0, 0, 0, 99lu, 0, 0, 0, 0, 0));
+
+  ASSERT_TRUE(filter.packet(0, 0, 0, 18lu, 0, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 19lu, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 100lu, 0, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 99lu, 0, 0, 0, 0, 0, 0));
+}
+
 TEST(Filter, minusProtocolClass) {
   std::string desc = "-protocolclass=0-9,10-18,100-250";
   Filter filter(desc);
@@ -203,6 +287,27 @@ TEST(Filter, minusProtocolClass) {
 
 TEST(Filter, plusSource) {
   std::string desc = "+source=0-9,10-18,100-250";
+  Filter filter(desc);
+  ASSERT_EQ(desc, filter.description());
+
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+
+  ASSERT_TRUE(filter.message(18lu, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.message(19lu, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.message(100lu, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.message(99lu, 0, 0, 0, 0, 0, 0, 0, 0));
+
+  ASSERT_TRUE(filter.packet(18lu, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.packet(19lu, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.packet(100lu, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.packet(99lu, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+}
+
+TEST(Filter, plusSrc) {
+  std::string desc = "+src=0-9,10-18,100-250";
   Filter filter(desc);
   ASSERT_EQ(desc, filter.description());
 
@@ -264,6 +369,27 @@ TEST(Filter, plusDestination) {
   ASSERT_FALSE(filter.packet(0, 99lu, 0, 0, 0, 0, 0, 0, 0, 0));
 }
 
+TEST(Filter, plusDst) {
+  std::string desc = "+dst=0-9,10-18,100-250";
+  Filter filter(desc);
+  ASSERT_EQ(desc, filter.description());
+
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+
+  ASSERT_TRUE(filter.message(0, 18lu, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.message(0, 19lu, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.message(0, 100lu, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.message(0, 99lu, 0, 0, 0, 0, 0, 0, 0));
+
+  ASSERT_TRUE(filter.packet(0, 18lu, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 19lu, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 100lu, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 99lu, 0, 0, 0, 0, 0, 0, 0, 0));
+}
+
 TEST(Filter, minusDestination) {
   std::string desc = "-destination=0-9,10-18,100-250";
   Filter filter(desc);
@@ -287,6 +413,27 @@ TEST(Filter, minusDestination) {
 
 TEST(Filter, plusHopCount) {
   std::string desc = "+hopcount=0-9,10-18,100-250";
+  Filter filter(desc);
+  ASSERT_EQ(desc, filter.description());
+
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 0));
+
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 18lu, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 19lu, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 100lu, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 99lu, 0, 0));
+}
+
+TEST(Filter, plusHc) {
+  std::string desc = "+hc=0-9,10-18,100-250";
   Filter filter(desc);
   ASSERT_EQ(desc, filter.description());
 
@@ -348,6 +495,27 @@ TEST(Filter, plusMinHopCount) {
   ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 99lu, 0));
 }
 
+TEST(Filter, plusMhc) {
+  std::string desc = "+mhc=0-9,10-18,100-250";
+  Filter filter(desc);
+  ASSERT_EQ(desc, filter.description());
+
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 18lu));
+  ASSERT_FALSE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 19lu));
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 100lu));
+  ASSERT_FALSE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 99lu));
+
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 18lu, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 19lu, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 100lu, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 99lu, 0));
+}
+
 TEST(Filter, minusMinHopCount) {
   std::string desc = "-minhopcount=0-9,10-18,100-250";
   Filter filter(desc);
@@ -371,6 +539,27 @@ TEST(Filter, minusMinHopCount) {
 
 TEST(Filter, plusNonMinHopCount) {
   std::string desc = "+nonminhopcount=0-9,10-18,100-250";
+  Filter filter(desc);
+  ASSERT_EQ(desc, filter.description());
+
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 0));
+
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 0));
+
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 0, 18lu));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 0, 19lu));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 0, 100lu));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 0, 99lu));
+}
+
+TEST(Filter, plusNmhc) {
+  std::string desc = "+nmhc=0-9,10-18,100-250";
   Filter filter(desc);
   ASSERT_EQ(desc, filter.description());
 
@@ -432,6 +621,27 @@ TEST(Filter, plusMessageCount) {
   ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
 }
 
+TEST(Filter, plusMsgCnt) {
+  std::string desc = "+msgcnt=0-9,10-18,100-250";
+  Filter filter(desc);
+  ASSERT_EQ(desc, filter.description());
+
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 18lu, 0, 0));
+  ASSERT_FALSE(filter.transaction(0, 0, 0, 19lu, 0, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 100lu, 0, 0));
+  ASSERT_FALSE(filter.transaction(0, 0, 0, 99lu, 0, 0));
+
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 0, 0));
+
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+}
+
 TEST(Filter, minusMessageCount) {
   std::string desc = "-messagecount=0-9,10-18,100-250";
   Filter filter(desc);
@@ -474,6 +684,27 @@ TEST(Filter, plusPacketCount) {
   ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
 }
 
+TEST(Filter, plusPktCnt) {
+  std::string desc = "+pktcnt=0-9,10-18,100-250";
+  Filter filter(desc);
+  ASSERT_EQ(desc, filter.description());
+
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 18lu, 0));
+  ASSERT_FALSE(filter.transaction(0, 0, 0, 0, 19lu, 0));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 100lu, 0));
+  ASSERT_FALSE(filter.transaction(0, 0, 0, 0, 99lu, 0));
+
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 18lu, 0, 0));
+  ASSERT_FALSE(filter.message(0, 0, 0, 0, 0, 0, 19lu, 0, 0));
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 100lu, 0, 0));
+  ASSERT_FALSE(filter.message(0, 0, 0, 0, 0, 0, 99lu, 0, 0));
+
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 0, 0, 0));
+}
+
 TEST(Filter, minusPacketCount) {
   std::string desc = "-packetcount=0-9,10-18,100-250";
   Filter filter(desc);
@@ -497,6 +728,27 @@ TEST(Filter, minusPacketCount) {
 
 TEST(Filter, plusFlitCount) {
   std::string desc = "+flitcount=0-9,10-18,100-250";
+  Filter filter(desc);
+  ASSERT_EQ(desc, filter.description());
+
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 18lu));
+  ASSERT_FALSE(filter.transaction(0, 0, 0, 0, 0, 19lu));
+  ASSERT_TRUE(filter.transaction(0, 0, 0, 0, 0, 100lu));
+  ASSERT_FALSE(filter.transaction(0, 0, 0, 0, 0, 99lu));
+
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 18lu, 0));
+  ASSERT_FALSE(filter.message(0, 0, 0, 0, 0, 0, 0, 19lu, 0));
+  ASSERT_TRUE(filter.message(0, 0, 0, 0, 0, 0, 0, 100lu, 0));
+  ASSERT_FALSE(filter.message(0, 0, 0, 0, 0, 0, 0, 99lu, 0));
+
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 18lu, 0, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 19lu, 0, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0,  100lu, 0, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 99lu, 0, 0, 0));
+}
+
+TEST(Filter, plusFlitCnt) {
+  std::string desc = "+flitcnt=0-9,10-18,100-250";
   Filter filter(desc);
   ASSERT_EQ(desc, filter.description());
 

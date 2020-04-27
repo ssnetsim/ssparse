@@ -69,7 +69,7 @@ Filter::Filter(const std::string& _description)
   } else if (type == "end" || type == "recv") {
     type_ = Filter::Type::END;
     useFloats = true;
-  } else if (type == "protocolclass" || type == "tc") {
+  } else if (type == "protocolclass" || type == "pc") {
     type_ = Filter::Type::PROTOCOLCLASS;
     useFloats = false;
   } else if (type == "source" || type == "src") {
@@ -87,13 +87,13 @@ Filter::Filter(const std::string& _description)
   } else if (type == "nonminhopcount" || type == "nmhc") {
     type_ = Filter::Type::NONMINHOPCOUNT;
     useFloats = false;
-  }  else if (type == "messagecount" || type == "msgcount" || type == "mc") {
+  }  else if (type == "messagecount" || type == "msgcnt") {
     type_ = Filter::Type::MESSAGECOUNT;
     useFloats = false;
-  } else if (type == "packetcount" || type == "pktcount" || type == "pc") {
+  } else if (type == "packetcount" || type == "pktcnt") {
     type_ = Filter::Type::PACKETCOUNT;
     useFloats = false;
-  } else if (type == "flitcount" || type == "fc") {
+  } else if (type == "flitcount" || type == "flitcnt") {
     type_ = Filter::Type::FLITCOUNT;
     useFloats = false;
   } else {
