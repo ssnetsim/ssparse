@@ -72,6 +72,9 @@ Filter::Filter(const std::string& _description)
   } else if (type == "protocolclass" || type == "pc") {
     type_ = Filter::Type::PROTOCOLCLASS;
     useFloats = false;
+  } else if (type == "opcode" || type == "op") {
+    type_ = Filter::Type::OPCODE;
+    useFloats = false;
   } else if (type == "source" || type == "src") {
     type_ = Filter::Type::SOURCE;
     useFloats = false;
@@ -205,6 +208,7 @@ bool Filter::transaction(u64 _transId, f64 _start, f64 _end, u32 _numMsgs,
       return accept_ == (ints_.count(_numFlits) == 1);
 
     case Filter::Type::PROTOCOLCLASS:
+    case Filter::Type::OPCODE:
     case Filter::Type::SOURCE:
     case Filter::Type::DESTINATION:
     case Filter::Type::HOPCOUNT:
@@ -217,8 +221,8 @@ bool Filter::transaction(u64 _transId, f64 _start, f64 _end, u32 _numMsgs,
 }
 
 bool Filter::message(u32 _src, u32 _dst, u64 _transId, u32 _protocolClass,
-                     f64 _start, f64 _end, u32 _numPkts, u32 _numFlits,
-                     u32 _minHopCount) {
+                     u32 _opcode, f64 _start, f64 _end, u32 _numPkts,
+                     u32 _numFlits, u32 _minHopCount) {
   u32 appId = (u32)(_transId >> 56);
 
   switch (type_) {
@@ -233,6 +237,9 @@ bool Filter::message(u32 _src, u32 _dst, u64 _transId, u32 _protocolClass,
 
     case Filter::Type::PROTOCOLCLASS:
       return accept_ == (ints_.count(_protocolClass) == 1);
+
+    case Filter::Type::OPCODE:
+      return accept_ == (ints_.count(_opcode) == 1);
 
     case Filter::Type::SOURCE:
       return accept_ == (ints_.count(_src) == 1);
@@ -260,7 +267,7 @@ bool Filter::message(u32 _src, u32 _dst, u64 _transId, u32 _protocolClass,
 }
 
 bool Filter::packet(u32 _src, u32 _dst, u64 _transId, u32 _protocolClass,
-                    f64 _start, f64 _end, u32 _numFlits,
+                    u32 _opcode, f64 _start, f64 _end, u32 _numFlits,
                     u32 _hopCount, u32 _minHopCount, u32 _nonMinHopCount) {
   u32 appId = (u32)(_transId >> 56);
 
@@ -276,6 +283,9 @@ bool Filter::packet(u32 _src, u32 _dst, u64 _transId, u32 _protocolClass,
 
     case Filter::Type::PROTOCOLCLASS:
       return accept_ == (ints_.count(_protocolClass) == 1);
+
+    case Filter::Type::OPCODE:
+      return accept_ == (ints_.count(_opcode) == 1);
 
     case Filter::Type::SOURCE:
       return accept_ == (ints_.count(_src) == 1);
