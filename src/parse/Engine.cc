@@ -165,7 +165,7 @@ void Engine::transactionEnd(u64 _transId, u64 _transEnd) {
 
   // determine if transaction will be logged
   bool logTransaction = true;
-  for (auto f : filters_) {
+  for (const auto& f : filters_) {
     if (!f->transaction(
             _transId, transFsm.start, transFsm.end,
             transFsm.msgCount, transFsm.pktCount, transFsm.flitCount)) {
@@ -212,7 +212,7 @@ void Engine::messageEnd() {
 
   // determine if message will be logged
   bool logMessage = true;
-  for (auto f : filters_) {
+  for (const auto& f : filters_) {
     if (!f->message(
             msgFsm_.src, msgFsm_.dst, msgFsm_.transId,
             msgFsm_.protocolClass, msgFsm_.start, msgFsm_.end,
@@ -278,7 +278,7 @@ void Engine::packetEnd() {
 
   // determine if the packet will be logged
   bool logPacket = true;
-  for (auto f : filters_) {
+  for (const auto& f : filters_) {
     if (!f->packet(
             msgFsm_.src, msgFsm_.dst, msgFsm_.transId,
             msgFsm_.protocolClass, pktFsm_.headStart, pktEnd,
