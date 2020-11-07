@@ -146,13 +146,11 @@ def main(args):
   gridsHop = []
   assert(len(hopFiles) == len(latFiles))
   for hopfile, latfile in zip(hopFiles,latFiles):
-    gLat = simplecsv.GridStats()
-    gLat.read(latfile)
+    gLat = simplecsv.GridStats.read(latfile)
     gridsLat.append(gLat)
     currColsLat = gLat.column_names()
 
-    gHop = simplecsv.GridStats()
-    gHop.read(hopfile)
+    gHop = simplecsv.GridStats.read(hopfile)
     gridsHop.append(gHop)
     currColsHop = gHop.column_names()
 
@@ -191,8 +189,7 @@ def main(args):
     os.remove(latfile)
 
   # write out.csv
-  fGrid = simplecsv.GridStats()
-  fGrid.create('Time', binTimesOrg, sColsHop + uColsLat)
+  fGrid = simplecsv.GridStats.create('Time', binTimesOrg, sColsHop + uColsLat)
 
   assert len(gridsLat) == len(binTimesOrg) and len(gridsHop) == len(binTimesOrg)
   for gridLat, gridHop, binTime in zip(gridsLat, gridsHop, binTimesOrg):
