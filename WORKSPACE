@@ -46,7 +46,7 @@ http_archive(
   build_file = "@tclap_build//file:downloaded",
 )
 
-hash = "6b56ef3"
+hash = "f564c5c"
 http_archive(
   name = "libprim",
   urls = ["https://github.com/nicmcd/libprim/tarball/" + hash],
@@ -54,7 +54,7 @@ http_archive(
   strip_prefix = "nicmcd-libprim-" + hash,
 )
 
-hash = "72bf466"
+hash = "bac91b7"
 http_archive(
   name = "libex",
   urls = ["https://github.com/nicmcd/libex/tarball/" + hash],
@@ -62,7 +62,7 @@ http_archive(
   strip_prefix = "nicmcd-libex-" + hash,
 )
 
-hash = "528a0a3"
+hash = "6570b57"
 http_archive(
   name = "libfio",
   urls = ["https://github.com/nicmcd/libfio/tarball/" + hash],
@@ -70,7 +70,7 @@ http_archive(
   strip_prefix = "nicmcd-libfio-" + hash,
 )
 
-hash = "ad29c47"
+hash = "ee4a54f"
 http_archive(
   name = "libstrop",
   urls = ["https://github.com/nicmcd/libstrop/tarball/" + hash],
@@ -78,7 +78,7 @@ http_archive(
   strip_prefix = "nicmcd-libstrop-" + hash,
 )
 
-hash = "8a7b8e7"
+hash = "ba13761"
 http_archive(
   name = "libmut",
   urls = ["https://github.com/nicmcd/libmut/tarball/" + hash],
