@@ -129,3 +129,22 @@ genrule(
     ],
     visibility = ["//visibility:public"],
 )
+
+py_binary(
+    name = "transient",
+    srcs = ["scripts/transient.py"],
+    main = "scripts/transient.py",
+    python_version = "PY3",
+    visibility = ["//visibility:public"],
+)
+
+sh_test(
+    name = "transient_check",
+    srcs = ["test/transient.sh"],
+    data = [
+        ":transient",
+        ":ssparse",
+        "test/fattree_iq_blast.mpf.gz",
+    ],
+    visibility = ["//visibility:public"],
+)
