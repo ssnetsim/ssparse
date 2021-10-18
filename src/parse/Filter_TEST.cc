@@ -806,7 +806,7 @@ TEST(Filter, plusFlitCount) {
 
   ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 18lu, 0, 0, 0));
   ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 19lu, 0, 0, 0));
-  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0,  100lu, 0, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 100lu, 0, 0, 0));
   ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 99lu, 0, 0, 0));
 }
 
@@ -827,7 +827,7 @@ TEST(Filter, plusFlitCnt) {
 
   ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 18lu, 0, 0, 0));
   ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 19lu, 0, 0, 0));
-  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0,  100lu, 0, 0, 0));
+  ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 100lu, 0, 0, 0));
   ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 99lu, 0, 0, 0));
 }
 
@@ -848,6 +848,6 @@ TEST(Filter, minusFlitCount) {
 
   ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 18lu, 0, 0, 0));
   ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 19lu, 0, 0, 0));
-  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0,  100lu, 0, 0, 0));
+  ASSERT_FALSE(filter.packet(0, 0, 0, 0, 0, 0, 0, 100lu, 0, 0, 0));
   ASSERT_TRUE(filter.packet(0, 0, 0, 0, 0, 0, 0, 99lu, 0, 0, 0));
 }

@@ -40,7 +40,6 @@
 #include "parse/Engine.h"
 #include "parse/util.h"
 
-
 s32 main(s32 _argc, char** _argv) {
   std::string inputFile;
   std::string transactionFile;
@@ -62,32 +61,28 @@ s32 main(s32 _argc, char** _argv) {
 
     // define command line args
     TCLAP::UnlabeledValueArg<std::string> inputFileArg(
-        "inputfile", "input file to be parsed",
-        true, "", "filename", cmd);
+        "inputfile", "input file to be parsed", true, "", "filename", cmd);
     TCLAP::ValueArg<std::string> transactionFileArg(
-        "t", "transactionfile", "output transaction latencies file",
-        false, "", "filename", cmd);
-    TCLAP::ValueArg<std::string> messageFileArg(
-        "m", "messagefile", "output message latencies file",
-        false, "", "filename", cmd);
-    TCLAP::ValueArg<std::string> packetFileArg(
-        "p", "packetfile", "output packet latencies file",
-        false, "", "filename", cmd);
+        "t", "transactionfile", "output transaction latencies file", false, "",
+        "filename", cmd);
+    TCLAP::ValueArg<std::string> messageFileArg("m", "messagefile",
+                                                "output message latencies file",
+                                                false, "", "filename", cmd);
+    TCLAP::ValueArg<std::string> packetFileArg("p", "packetfile",
+                                               "output packet latencies file",
+                                               false, "", "filename", cmd);
     TCLAP::ValueArg<std::string> latencyFileArg(
-        "l", "latencyfile", "output aggregate latencies file",
-        false, "", "filename", cmd);
+        "l", "latencyfile", "output aggregate latencies file", false, "",
+        "filename", cmd);
     TCLAP::ValueArg<std::string> hopcountFileArg(
-        "c", "hopcountfile", "output aggregate hopcounts file",
-        false, "", "filename", cmd);
-    TCLAP::ValueArg<f64> scalarArg(
-        "s", "scalar", "latency scalar",
-        false, 1.0, "f64", cmd);
+        "c", "hopcountfile", "output aggregate hopcounts file", false, "",
+        "filename", cmd);
+    TCLAP::ValueArg<f64> scalarArg("s", "scalar", "latency scalar", false, 1.0,
+                                   "f64", cmd);
     TCLAP::SwitchArg packetHeaderLatencyArg(
-        "", "headerlatency", "use header latency for packets",
-        cmd, false);
+        "", "headerlatency", "use header latency for packets", cmd, false);
     TCLAP::MultiArg<std::string> filterStrsArg(
-        "f", "filter", "acceptance filters",
-        false, "filter description", cmd);
+        "f", "filter", "acceptance filters", false, "filter description", cmd);
 
     // parse the command line
     cmd.parse(_argc, _argv);
@@ -107,9 +102,8 @@ s32 main(s32 _argc, char** _argv) {
   }
 
   // create a processing engine
-  Engine engine(transactionFile, messageFile, packetFile,
-                latencyfile, hopcountfile, scalar,
-                packetHeaderLatency, filterStrs);
+  Engine engine(transactionFile, messageFile, packetFile, latencyfile,
+                hopcountfile, scalar, packetHeaderLatency, filterStrs);
 
   // create input file object
   if (inputFile.size() == 0) {

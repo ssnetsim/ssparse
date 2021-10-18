@@ -56,7 +56,7 @@ u32 toU32(const std::string& _str) {
 }
 
 f64 toF64(const std::string& _str) {
-  char *end;
+  char* end;
   const char* cstr = _str.c_str();
   f64 val = strtod(cstr, &end);
   if ((end - cstr) < static_cast<s64>(_str.size())) {
@@ -72,13 +72,13 @@ u64 split(const std::string& _str, std::vector<std::string>* _words) {
   u64 idx;
   std::string token;
   while ((idx = _str.find(delimiter, pos)) != std::string::npos) {
-    token = _str.substr(pos, idx-pos);
+    token = _str.substr(pos, idx - pos);
     _words->push_back(token);
     pos = idx + 1;
     count++;
   }
   if (pos < _str.size()) {
-    token = _str.substr(pos, _str.size()-pos);
+    token = _str.substr(pos, _str.size() - pos);
     _words->push_back(token);
     count++;
   }

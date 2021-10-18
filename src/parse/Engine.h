@@ -44,13 +44,10 @@
 
 class Engine {
  public:
-  Engine(const std::string& _transactionsFile,
-         const std::string& _messagesFile,
-         const std::string& _packetsFile,
-         const std::string& _latencyfile,
-         const std::string& _hopcountfile,
-         f64 _scalar, bool _packetHeaderLatency,
-         const std::vector<std::string>& _filters);
+  Engine(const std::string& _transactionsFile, const std::string& _messagesFile,
+         const std::string& _packetsFile, const std::string& _latencyfile,
+         const std::string& _hopcountfile, f64 _scalar,
+         bool _packetHeaderLatency, const std::vector<std::string>& _filters);
   ~Engine();
 
   void transactionStart(u64 _transId, u64 _transStart);
@@ -90,8 +87,8 @@ class Engine {
   u64 totalHops_;
   u64 minHops_;
   u64 nonMinHops_;
-  std::vector<u64> hopCounts_;  // [hopcount]
-  std::vector<u64> minHopCounts_;  // [minhopcount]
+  std::vector<u64> hopCounts_;        // [hopcount]
+  std::vector<u64> minHopCounts_;     // [minhopcount]
   std::vector<u64> nonMinHopCounts_;  // [nonminhopcount]
 
   // packet counts

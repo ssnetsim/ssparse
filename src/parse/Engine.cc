@@ -33,10 +33,9 @@
 #include <ex/Exception.h>
 #include <mut/mut.h>
 
-#include <cassert>
-
-#include <sstream>
 #include <algorithm>
+#include <cassert>
+#include <sstream>
 
 const f64 TOLERANCE = 1e-6;
 
@@ -91,10 +90,9 @@ void Engine::PktFsm::reset() {
 
 Engine::Engine(const std::string& _transactionsFile,
                const std::string& _messagesFile,
-               const std::string& _packetsFile,
-               const std::string& _latencyfile,
-               const std::string& _hopcountfile,
-               f64 _scalar, bool _packetHeaderLatency,
+               const std::string& _packetsFile, const std::string& _latencyfile,
+               const std::string& _hopcountfile, f64 _scalar,
+               bool _packetHeaderLatency,
                const std::vector<std::string>& _filters)
     : scalar_(_scalar), packetHeaderLatency_(_packetHeaderLatency) {
   if (_transactionsFile.size() > 0) {
@@ -166,9 +164,9 @@ void Engine::transactionEnd(u64 _transId, u64 _transEnd) {
   // determine if transaction will be logged
   bool logTransaction = true;
   for (const auto& f : filters_) {
-    if (!f->transaction(
-            _transId, transFsm.start, transFsm.end,
-            transFsm.msgCount, transFsm.pktCount, transFsm.flitCount)) {
+    if (!f->transaction(_transId, transFsm.start, transFsm.end,
+                        transFsm.msgCount, transFsm.pktCount,
+                        transFsm.flitCount)) {
       logTransaction = false;
       break;
     }
@@ -214,10 +212,10 @@ void Engine::messageEnd() {
   // determine if message will be logged
   bool logMessage = true;
   for (const auto& f : filters_) {
-    if (!f->message(
-            msgFsm_.src, msgFsm_.dst, msgFsm_.transId,
-            msgFsm_.protocolClass, msgFsm_.opCode, msgFsm_.start, msgFsm_.end,
-            msgFsm_.pktCount, msgFsm_.flitCount, msgFsm_.minHopCount)) {
+    if (!f->message(msgFsm_.src, msgFsm_.dst, msgFsm_.transId,
+                    msgFsm_.protocolClass, msgFsm_.opCode, msgFsm_.start,
+                    msgFsm_.end, msgFsm_.pktCount, msgFsm_.flitCount,
+                    msgFsm_.minHopCount)) {
       logMessage = false;
       break;
     }
@@ -280,11 +278,10 @@ void Engine::packetEnd() {
   // determine if the packet will be logged
   bool logPacket = true;
   for (const auto& f : filters_) {
-    if (!f->packet(
-            msgFsm_.src, msgFsm_.dst, msgFsm_.transId,
-            msgFsm_.protocolClass, msgFsm_.opCode, pktFsm_.headStart, pktEnd,
-            pktFsm_.flitCount, pktFsm_.hopCount, msgFsm_.minHopCount,
-            pktFsm_.nonMinHopCount)) {
+    if (!f->packet(msgFsm_.src, msgFsm_.dst, msgFsm_.transId,
+                   msgFsm_.protocolClass, msgFsm_.opCode, pktFsm_.headStart,
+                   pktEnd, pktFsm_.flitCount, pktFsm_.hopCount,
+                   msgFsm_.minHopCount, pktFsm_.nonMinHopCount)) {
       logPacket = false;
       break;
     }
@@ -293,8 +290,7 @@ void Engine::packetEnd() {
   // save the packet latency
   if (logPacket) {
     pktLatencies_.push_back(pktEnd - pktFsm_.headStart);
-    processHopCounts(pktFsm_.hopCount,
-                     msgFsm_.minHopCount,
+    processHopCounts(pktFsm_.hopCount, msgFsm_.minHopCount,
                      pktFsm_.nonMinHopCount);
     if (pktsFile_) {
       pktsFile_->write(std::to_string(pktFsm_.headStart) + "," +
@@ -333,8 +329,9 @@ void Engine::flit(u32 _flitId, u64 _flitSendTime, u64 _flitReceiveTime) {
 
   // scale the flit time
   if (_flitSendTime > _flitReceiveTime) {
-    throw ex::Exception("Flit received before it was sent? "
-                        "File corrupted :(\n");
+    throw ex::Exception(
+        "Flit received before it was sent? "
+        "File corrupted :(\n");
   }
   f64 sendTime = _flitSendTime * scalar_;
   f64 recvTime = _flitReceiveTime * scalar_;
@@ -354,11 +351,11 @@ void Engine::flit(u32 _flitId, u64 _flitSendTime, u64 _flitReceiveTime) {
 
 void Engine::complete() {
   // check that all state machines completed
-  if ((!transFsms_.empty()) ||
-      (msgFsm_.enabled == true) ||
+  if ((!transFsms_.empty()) || (msgFsm_.enabled == true) ||
       (pktFsm_.enabled == true)) {
-    throw ex::Exception("ERROR: State machines didn't complete. "
-                        "Input file is likely corrupted.\n");
+    throw ex::Exception(
+        "ERROR: State machines didn't complete. "
+        "Input file is likely corrupted.\n");
   }
 
   // generate aggregate total hops
@@ -473,22 +470,22 @@ void Engine::writeHopCountFile() {
   // total
   ss << "Packet,";
   if (pktCount_ > 0) {
-    f64 aveHops = (f64)totalHops_/(f64)pktCount_;
+    f64 aveHops = (f64)totalHops_ / (f64)pktCount_;
     ss << std::to_string(aveHops) << ",";  // aveHops
     if (startTotal != U32_MAX && endTotal != U32_MAX) {
       for (u32 i = startTotal; i <= endTotal; i++) {
-        f64 perHops = (f64)hopCounts_[i]/(f64)pktCount_;
+        f64 perHops = (f64)hopCounts_[i] / (f64)pktCount_;
         ss << std::to_string(perHops) << ",";  // perh
       }
     }
     // minimal hops
-    f64 aveMinHops = (f64)minHops_/(f64)pktCount_;
-    f64 perMin = (f64)minPktCount_/(f64)pktCount_;
+    f64 aveMinHops = (f64)minHops_ / (f64)pktCount_;
+    f64 perMin = (f64)minPktCount_ / (f64)pktCount_;
     ss << std::to_string(aveMinHops) << "," << std::to_string(perMin) << ",";
     if (startMin != U32_MAX && endMin != U32_MAX) {
       f64 cumPerMinHops = 0.0;
       for (u32 i = startMin; i <= endMin; i++) {
-        f64 perMinHops = (f64)minHopCounts_[i]/(f64)pktCount_;
+        f64 perMinHops = (f64)minHopCounts_[i] / (f64)pktCount_;
         cumPerMinHops += perMinHops;
         ss << std::to_string(perMinHops) << ",";
       }
@@ -496,14 +493,14 @@ void Engine::writeHopCountFile() {
              cumPerMinHops >= (1.00 - TOLERANCE));
     }
     // nonminimal hops
-    f64 aveNonMinHops = (f64)nonMinHops_/(f64)pktCount_;
-    f64 perNonMin = (f64)nonMinPktCount_/(f64)pktCount_;
+    f64 aveNonMinHops = (f64)nonMinHops_ / (f64)pktCount_;
+    f64 perNonMin = (f64)nonMinPktCount_ / (f64)pktCount_;
     ss << std::to_string(aveNonMinHops) << ",";  // aveNMHops
-    ss << std::to_string(perNonMin) << ",";  // perNM
+    ss << std::to_string(perNonMin) << ",";      // perNM
     if (startNonMin != U32_MAX && endNonMin != U32_MAX) {
       f64 cumPerNonMinHops = 0.0;
       for (u32 i = startNonMin; i <= endNonMin; i++) {
-        f64 perNonMinHops = (f64)nonMinHopCounts_[i]/(f64)pktCount_;
+        f64 perNonMinHops = (f64)nonMinHopCounts_[i] / (f64)pktCount_;
         cumPerNonMinHops += perNonMinHops;
         ss << std::to_string(perNonMinHops) << ",";
       }
@@ -514,9 +511,9 @@ void Engine::writeHopCountFile() {
     data.at(data.size() - 1) = '\n';
 
     // asserts
-    f64 sumPerPkt = ((f64)minPktCount_/(f64)pktCount_) +
-        ((f64)nonMinPktCount_/(f64)pktCount_);
-    assert(minPktCount_+ nonMinPktCount_ == pktCount_);
+    f64 sumPerPkt = ((f64)minPktCount_ / (f64)pktCount_) +
+                    ((f64)nonMinPktCount_ / (f64)pktCount_);
+    assert(minPktCount_ + nonMinPktCount_ == pktCount_);
     assert(sumPerPkt <= (1.00 + TOLERANCE) && sumPerPkt >= (1.00 - TOLERANCE));
   } else {
     data = "Packet,nan,nan,nan,nan,nan\n";
@@ -593,25 +590,25 @@ void Engine::writeLatencyFile() {
   latFile_->write("Message,");
   latFile_->write(std::to_string(size) + ",");
   if (size > 0) {
-  pmin = 0;
-  pmax = size - 1;
-  p50 = round(pmax * 0.50);
-  p90 = round(pmax * 0.90);
-  p99 = round(pmax * 0.99);
-  p999 = round(pmax * 0.999);
-  p9999 = round(pmax * 0.9999);
-  p99999 = round(pmax * 0.99999);
-  latFile_->write(std::to_string(msgLatencies_.at(pmin)) + ",");
-  latFile_->write(std::to_string(msgLatencies_.at(pmax)) + ",");
-  latFile_->write(std::to_string(msgLatencies_.at(p50)) + ",");
-  latFile_->write(std::to_string(msgLatencies_.at(p90)) + ",");
-  latFile_->write(std::to_string(msgLatencies_.at(p99)) + ",");
-  latFile_->write(std::to_string(msgLatencies_.at(p999)) + ",");
-  latFile_->write(std::to_string(msgLatencies_.at(p9999)) + ",");
-  latFile_->write(std::to_string(msgLatencies_.at(p99999)) + ",");
-  latFile_->write(std::to_string(msgMean) + ",");
-  latFile_->write(std::to_string(msgVariance) + ",");
-  latFile_->write(std::to_string(msgStdDev) + "\n");
+    pmin = 0;
+    pmax = size - 1;
+    p50 = round(pmax * 0.50);
+    p90 = round(pmax * 0.90);
+    p99 = round(pmax * 0.99);
+    p999 = round(pmax * 0.999);
+    p9999 = round(pmax * 0.9999);
+    p99999 = round(pmax * 0.99999);
+    latFile_->write(std::to_string(msgLatencies_.at(pmin)) + ",");
+    latFile_->write(std::to_string(msgLatencies_.at(pmax)) + ",");
+    latFile_->write(std::to_string(msgLatencies_.at(p50)) + ",");
+    latFile_->write(std::to_string(msgLatencies_.at(p90)) + ",");
+    latFile_->write(std::to_string(msgLatencies_.at(p99)) + ",");
+    latFile_->write(std::to_string(msgLatencies_.at(p999)) + ",");
+    latFile_->write(std::to_string(msgLatencies_.at(p9999)) + ",");
+    latFile_->write(std::to_string(msgLatencies_.at(p99999)) + ",");
+    latFile_->write(std::to_string(msgMean) + ",");
+    latFile_->write(std::to_string(msgVariance) + ",");
+    latFile_->write(std::to_string(msgStdDev) + "\n");
   } else {
     latFile_->write("nan,nan,nan,nan,nan,nan,nan,nan,nan,nan,nan\n");
   }

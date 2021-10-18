@@ -34,14 +34,11 @@
 #include <strop/strop.h>
 
 #include <cassert>
-
 #include <vector>
 
 #include "parse/util.h"
 
-
-Filter::Filter(const std::string& _description)
-    : description_(_description) {
+Filter::Filter(const std::string& _description) : description_(_description) {
   // parse the accept/reject flag
   char accept = _description.at(0);
   if (accept == '+') {
@@ -90,7 +87,7 @@ Filter::Filter(const std::string& _description)
   } else if (type == "nonminhopcount" || type == "nmhc") {
     type_ = Filter::Type::NONMINHOPCOUNT;
     useFloats = false;
-  }  else if (type == "messagecount" || type == "msgcnt") {
+  } else if (type == "messagecount" || type == "msgcnt") {
     type_ = Filter::Type::MESSAGECOUNT;
     useFloats = false;
   } else if (type == "packetcount" || type == "pktcnt") {
@@ -111,8 +108,9 @@ Filter::Filter(const std::string& _description)
 
     if (useFloats) {
       if (firstLast.size() != 2) {
-        throw ex::Exception("time based specifications must define a range. "
-                            "ex: 100-200");
+        throw ex::Exception(
+            "time based specifications must define a range. "
+            "ex: 100-200");
       }
       f64 start;
       try {
@@ -182,7 +180,6 @@ Filter::~Filter() {}
 const std::string& Filter::description() const {
   return description_;
 }
-
 
 bool Filter::transaction(u64 _transId, f64 _start, f64 _end, u32 _numMsgs,
                          u32 _numPkts, u32 _numFlits) {
