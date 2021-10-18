@@ -33,7 +33,7 @@
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 import argparse
-import simplecsv
+import handycsv
 import gzip
 import math
 import numpy
@@ -146,11 +146,11 @@ def main(args):
   gridsHop = []
   assert(len(hopFiles) == len(latFiles))
   for hopfile, latfile in zip(hopFiles,latFiles):
-    gLat = simplecsv.GridStats.read(latfile)
+    gLat = handycsv.GridStats.read(latfile)
     gridsLat.append(gLat)
     currColsLat = gLat.column_names()
 
-    gHop = simplecsv.GridStats.read(hopfile)
+    gHop = handycsv.GridStats.read(hopfile)
     gridsHop.append(gHop)
     currColsHop = gHop.column_names()
 
@@ -189,7 +189,7 @@ def main(args):
     os.remove(latfile)
 
   # write out.csv
-  fGrid = simplecsv.GridStats.create('Time', binTimesOrg, sColsHop + uColsLat)
+  fGrid = handycsv.GridStats.create('Time', binTimesOrg, sColsHop + uColsLat)
 
   assert len(gridsLat) == len(binTimesOrg) and len(gridsHop) == len(binTimesOrg)
   for gridLat, gridHop, binTime in zip(gridsLat, gridsHop, binTimesOrg):
