@@ -6,6 +6,6 @@ set -e
 
 python3 <<EOF
 import handycsv
-csv = handycsv.GridStats("./fattree_iq_blast.csv")
+csv = handycsv.GridStats.read("./fattree_iq_blast.csv")
 assert csv.head() == "Time"
 EOF
